@@ -1,0 +1,6 @@
+{
+  "name": "OnionSure - Onion Quality & Grading",
+  "description": "AI-powered smart onion batch quality estimation from heap images, digital grading, batch tracking, and PDF verification reports.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
