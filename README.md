@@ -1,42 +1,46 @@
-# OnionSure
+# OnionSure - AI-Powered Onion Quality & Digital Grading
 
-Android-first Flutter demo for SIH26031: AI-powered onion quality assessment and digital grading.
+A modern React & TypeScript web application rewritten from the SIH26031 Flutter prototype. OnionSure enables AI-powered onion batch quality estimation from heap images, digital grading (Grade A, Grade B, Reject), batch tracking with QR codes, inspection logging, and verifiable PDF-style inspection reports with cryptographic validation.
 
-## Run
+## Key Features
 
-```powershell
-cd onion_quality_app
-flutter pub get
-flutter run
+- **Batch Management**: Create, view, search, and track onion harvest batches with QR identification and storage parameters.
+- **Heap AI Quality Inspection**:
+  - Upload heap photos or capture sample inspection frames.
+  - Interactive bounding box and segmentation overlay with toggleable visible onion detection masks.
+  - Automatic digital grading distribution: Grade A, Grade B, and Reject percentages.
+  - Defect breakdown (sprouting, rot, mechanical cuts, discoloration).
+  - Storage advisories and actionable shelf-life recommendations.
+- **Verifiable Digital Reports**:
+  - Comprehensive inspection certificates with unique verification hashes.
+  - QR codes encode instant verification URLs with deep-link hash validation.
+  - Formatted for clean desktop and print-ready PDF reporting.
+- **Batch Verification Portal**:
+  - Verify inspection integrity by scanning or pasting report verification hashes.
+- **Local Persistence & Configurable Backend**:
+  - Persists batches and inspection logs in client `localStorage`.
+  - Configurable backend endpoint for connecting to the FastAPI `HeapAnalysisService` or running in self-contained realistic demo mode.
+
+## Tech Stack
+
+- **Framework**: React 18 with TypeScript
+- **Bundler & Dev Server**: Vite 6
+- **Styling**: Tailwind CSS v4
+- **Icons**: Lucide React
+- **QR Code Generation**: `qrcode.react`
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server (port 3000)
+npm run dev
+
+# Run type check & linter
+npm run lint
+
+# Build production bundle
+npm run build
 ```
-
-Demo flow: `Create batch -> Batch QR -> Scan QR -> Capture/select image -> Mock analysis -> PDF report -> Report QR -> Verify`.
-
-The upgraded heap flow is available from an inspection: capture or select one heap image, choose `Analyze Onion Heap`, then review segmentation overlays, visible-sample Grade A/B/Reject percentages, defects, and the report. Start the backend from `backend/README.md` and pass its URL with `--dart-define=HEAP_ANALYSIS_API_URL=...`.
-
-## AI configuration
-
-Edit `lib/config/app_config.dart`:
-
-- Set `useMockAi = true` for presentation mode.
-- Set `useMockAi = false` to POST multipart images to `aiApiUrl`.
-- Change `aiApiUrl` to the reachable FastAPI endpoint.
-
-## Firebase configuration
-
-1. Create a Firebase project and enable Email/Password Authentication, Firestore, and Storage.
-2. Install FlutterFire CLI and run `flutterfire configure` from this directory.
-3. Initialize Firebase with the generated `firebase_options.dart` before `runApp`.
-4. Replace the demo methods in `lib/services/app_services.dart` with Firebase Auth, Firestore, and Storage calls. Intended collections are `users`, `batches`, `inspections`, and `reports`.
-5. Deploy `firestore.rules` with the Firebase CLI.
-
-The demo store keeps the app runnable before Firebase credentials are available.
-
-## Build APK
-
-```powershell
-flutter build apk --debug
-flutter build apk --release
-```
-
-Release builds require Android signing configuration for distribution.
