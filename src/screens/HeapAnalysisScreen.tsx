@@ -17,7 +17,11 @@ import {
   Clock,
   CheckCircle2,
   FileCheck2,
+  Activity,
+  Cpu,
+  Layers,
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HeapAnalysisScreenProps {
   batch: OnionBatch;
@@ -40,10 +44,11 @@ export const HeapAnalysisScreen: React.FC<HeapAnalysisScreenProps> = ({
   meta,
   onCertify,
 }) => {
+  const { t } = useLanguage();
   const [activeDefectFilter, setActiveDefectFilter] = useState<DefectType | null>(null);
   const [selectedBulb, setSelectedBulb] = useState<OnionDetectionItem | null>(null);
 
-  // Derive overall grade exactly as in Flutter app:
+  // Derive overall grade
   const deriveGrade = (): QualityGrade => {
     if (result.grades.rejectPercent > 12.0) {
       return 'Reject';
@@ -105,13 +110,13 @@ export const HeapAnalysisScreen: React.FC<HeapAnalysisScreenProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
                   {assignedGrade === 'Grade A'
-                    ? 'Certified Export / Premium Grade'
+                    ? t.heapAnalysis.gradeExport
                     : assignedGrade === 'Grade B'
-                    ? 'Fair Average Mandi Quality'
-                    : 'Lot Rejected (Non-Marketable)'}
+                    ? t.heapAnalysis.gradeFair
+                    : t.heapAnalysis.gradeReject}
                 </h2>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
-                  Batch: {batch.batchNumber}
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold font-mono">
+                  {batch.batchNumber}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -123,14 +128,14 @@ export const HeapAnalysisScreen: React.FC<HeapAnalysisScreenProps> = ({
           <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 text-xs text-slate-600 gap-1">
             <div className="flex items-center gap-1 font-semibold text-slate-800">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>{Math.round(result.overallConfidence * 100)}% Confidence</span>
+              <span>{Math.round(result.overallConfidence * 100)}% {t.common.confidence}</span>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-slate-400">
               <Clock className="w-3 h-3" />
-              <span>Inference: {result.processingTimeMs}ms</span>
+              <span>{t.heapAnalysis.inferenceTime}: {result.processingTimeMs}ms</span>
             </div>
             <div className="text-[11px] text-slate-400">
-              Scanned: {result.visibleOnionCount} surface bulbs
+              {t.heapAnalysis.scannedBulbs}: {result.visibleOnionCount}
             </div>
           </div>
         </div>
@@ -155,10 +160,10 @@ export const HeapAnalysisScreen: React.FC<HeapAnalysisScreenProps> = ({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-slate-800">
-            Computer Vision Heap Instance Segmentation
+            {t.heapAnalysis.segmentationTitle}
           </h3>
           <span className="text-xs text-slate-500">
-            Click bulbs to isolate
+            {t.heapAnalysis.clickBulbHint}
           </span>
         </div>
         <SegmentationOverlay
@@ -181,6 +186,73 @@ export const HeapAnalysisScreen: React.FC<HeapAnalysisScreenProps> = ({
         }}
       />
 
+      {/* Developer Diagnostics Panel (Optional, only visible when diagnostics enabled) */}
+      {result.diagnostics && (
+        <div className="bg-slate-900 text-slate-200 rounded-xl p-4 sm:p-5 border border-slate-700 shadow-sm animate-in fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-sky-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-100">
+                Developer Diagnostics & Inference Telemetry
+              </span>
+            </div>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-sky-300 border border-slate-700">
+              {result.diagnostics.modelName} (v{result.diagnostics.modelVersion})
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-xs">
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+              <span className="text-[10px] text-slate-400 block uppercase font-semibold">
+                Inference Time
+              </span>
+              <span className="font-mono text-sm font-bold text-emerald-400">
+                {result.diagnostics.inferenceTimeMs} ms
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                Total: {result.diagnostics.totalTimeMs} ms
+              </span>
+            </div>
+
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+              <span className="text-[10px] text-slate-400 block uppercase font-semibold">
+                Detections (Raw vs Final)
+              </span>
+              <span className="font-mono text-sm font-bold text-sky-400">
+                {result.diagnostics.finalDetections} / {result.diagnostics.rawDetections}
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                NMS Suppressed: {result.diagnostics.nmsSuppressed}
+              </span>
+            </div>
+
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+              <span className="text-[10px] text-slate-400 block uppercase font-semibold">
+                Input Resolution
+              </span>
+              <span className="font-mono text-sm font-bold text-amber-400">
+                {result.diagnostics.imageSize.width} × {result.diagnostics.imageSize.height}
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                Size: {Math.round(result.diagnostics.imageSize.sizeBytes / 1024)} KB
+              </span>
+            </div>
+
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+              <span className="text-[10px] text-slate-400 block uppercase font-semibold">
+                Pipeline Stages
+              </span>
+              <span className="font-mono text-[11px] text-slate-300 block">
+                Prep: {result.diagnostics.preprocessingTimeMs}ms
+              </span>
+              <span className="font-mono text-[11px] text-slate-300 block">
+                Post: {result.diagnostics.postprocessingTimeMs}ms
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mandatory Surface Estimation Disclaimer */}
       <DisclaimerBanner disclaimerText={result.disclaimer} />
 
@@ -188,20 +260,20 @@ export const HeapAnalysisScreen: React.FC<HeapAnalysisScreenProps> = ({
       <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
         <div>
           <h4 className="text-sm font-bold text-slate-900">
-            Issue Digital AGMARK Quality Certificate
+            {t.heapAnalysis.certifyBannerTitle}
           </h4>
           <p className="text-xs text-slate-500">
-            Signs this lot record with cryptographic token and updates mandi batch status
+            {t.heapAnalysis.certifyBannerSubtitle}
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleGenerateCertificate}
-          className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#7C2D12] text-white text-xs font-bold hover:bg-[#68250e] shadow-xs flex items-center justify-center gap-2 transition-colors shrink-0"
+          className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#7C2D12] text-white text-xs font-bold hover:bg-[#68250e] shadow-xs flex items-center justify-center gap-2 transition-colors shrink-0 cursor-pointer"
         >
           <FileCheck2 className="w-4 h-4" />
-          <span>Certify & View Certificate</span>
+          <span>{t.heapAnalysis.certifyBtn}</span>
         </button>
       </div>
     </div>

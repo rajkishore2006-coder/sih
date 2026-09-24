@@ -24,6 +24,10 @@ import { VerifyScreen } from './screens/VerifyScreen';
 import { InspectionHistoryScreen } from './screens/InspectionHistoryScreen';
 import { AiSettingsModal } from './components/AiSettingsModal';
 import { ScanBatchModal } from './components/ScanBatchModal';
+import { InspectorLoginModal, InspectorProfile, loadSavedInspector } from './components/InspectorLoginModal';
+import { OfflineSyncBanner } from './components/OfflineSyncBanner';
+import { offlineSyncService } from './services/offlineSyncService';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 
 type AppScreen =
   | 'home'
@@ -35,12 +39,14 @@ type AppScreen =
   | 'verify'
   | 'history';
 
-export function App() {
+function AppContent() {
+  const { t } = useLanguage();
   const [batches, setBatches] = useState<OnionBatch[]>(() => loadSavedBatches());
   const [inspections, setInspections] = useState<OnionInspection[]>(() =>
     loadSavedInspections()
   );
   const [aiSettings, setAiSettings] = useState<AiSettings>(() => loadAiSettings());
+  const [inspectorProfile, setInspectorProfile] = useState<InspectorProfile>(() => loadSavedInspector());
 
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('home');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -62,6 +68,7 @@ export function App() {
   // Modals
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Persist whenever batches or inspections change
   useEffect(() => {
@@ -90,6 +97,12 @@ export function App() {
   const handleCreateBatch = (newBatch: OnionBatch) => {
     setBatches((prev) => [newBatch, ...prev]);
     setSelectedBatchId(newBatch.id);
+
+    // Queue for sync if offline or running local-first
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      offlineSyncService.queueBatch(newBatch);
+    }
+
     setCurrentScreen('batch_detail');
   };
 
@@ -136,6 +149,12 @@ export function App() {
 
     setSelectedInspectionId(inspection.id);
     setSelectedBatchId(inspection.batchId);
+
+    // Queue for sync if offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      offlineSyncService.queueInspection(inspection);
+    }
+
     setCurrentScreen('report');
   };
 
@@ -153,52 +172,52 @@ export function App() {
     switch (currentScreen) {
       case 'create_batch':
         return {
-          title: 'Register Mandi Batch',
-          subtitle: 'Lot Identification & QR Generation',
+          title: t.nav.registerBatch,
+          subtitle: t.nav.registerBatchSubtitle,
           canGoBack: true,
           onBack: () => setCurrentScreen('home'),
         };
       case 'batch_detail':
         return {
-          title: activeBatch?.batchNumber || 'Batch Details',
-          subtitle: 'Lot Traceability & Inspection Records',
+          title: activeBatch?.batchNumber || t.nav.batchDetails,
+          subtitle: t.nav.batchDetailsSubtitle,
           canGoBack: true,
           onBack: () => setCurrentScreen('home'),
         };
       case 'inspection':
         return {
-          title: 'Heap Analysis & Grading',
-          subtitle: 'Computer Vision Defect Estimation',
+          title: t.nav.heapInspection,
+          subtitle: t.nav.heapInspectionSubtitle,
           canGoBack: true,
           onBack: () =>
             selectedBatchId ? setCurrentScreen('batch_detail') : setCurrentScreen('home'),
         };
       case 'heap_analysis':
         return {
-          title: 'Analysis & Instance Segmentation',
-          subtitle: 'Surface Contour & AGMARK Estimation',
+          title: t.nav.heapAnalysis,
+          subtitle: t.nav.heapAnalysisSubtitle,
           canGoBack: true,
           onBack: () => setCurrentScreen('inspection'),
         };
       case 'report':
         return {
-          title: 'Quality Certificate',
-          subtitle: 'Digital AGMARK & e-NAM Verified',
+          title: t.nav.certificate,
+          subtitle: t.nav.certificateSubtitle,
           canGoBack: true,
           onBack: () =>
             selectedBatchId ? setCurrentScreen('batch_detail') : setCurrentScreen('home'),
         };
       case 'verify':
         return {
-          title: 'Certificate Verification',
-          subtitle: 'Public e-NAM APMC Lot Authentication',
+          title: t.nav.verify,
+          subtitle: t.nav.verifySubtitle,
           canGoBack: true,
           onBack: () => setCurrentScreen('home'),
         };
       case 'history':
         return {
-          title: 'Inspection & Certificate Log',
-          subtitle: 'Audited Mandi Quality Archive',
+          title: t.nav.history,
+          subtitle: t.nav.historySubtitle,
           canGoBack: true,
           onBack: () => setCurrentScreen('home'),
         };
@@ -222,7 +241,12 @@ export function App() {
         onGoHome={() => setCurrentScreen('home')}
         title={headerMeta.title}
         subtitle={headerMeta.subtitle}
+        inspectorName={inspectorProfile.name}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
       />
+
+      {/* Offline Status & Pending Sync Indicator */}
+      <OfflineSyncBanner />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
@@ -261,6 +285,7 @@ export function App() {
             batches={batches}
             preselectedBatch={activeBatch}
             aiSettings={aiSettings}
+            currentInspector={inspectorProfile}
             onAnalysisComplete={handleAnalysisComplete}
           />
         )}
@@ -310,11 +335,10 @@ export function App() {
       <footer className="no-print border-t border-slate-200 bg-white py-4 px-4 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            <span className="font-bold text-slate-700">OnionSure</span> • Smart India Hackathon
-            SIH26031
+            <span className="font-bold text-slate-700">{t.appName}</span> • {t.footerText}
           </div>
           <div>
-            AI-based smart onion batch quality estimation from heap images • APMC Mandi Ready
+            {t.footerDisclaimer}
           </div>
         </div>
       </footer>
@@ -333,7 +357,23 @@ export function App() {
         batches={batches}
         onSelectBatch={handleOpenBatchDetail}
       />
+
+      <InspectorLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        currentProfile={inspectorProfile}
+        onSaveProfile={setInspectorProfile}
+      />
     </div>
   );
 }
+
+export function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
+}
+
 export default App;

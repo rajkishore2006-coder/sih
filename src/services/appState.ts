@@ -8,6 +8,7 @@ const AI_SETTINGS_STORAGE_KEY = 'onionsure_ai_settings_v1';
 export interface AiSettings {
   useMockAi: boolean;
   aiApiUrl: string;
+  enableDiagnostics?: boolean;
 }
 
 function getInitialBatches(): OnionBatch[] {

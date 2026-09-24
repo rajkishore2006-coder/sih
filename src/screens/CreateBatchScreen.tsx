@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { OnionBatch } from '../types';
 import { Info, User, Phone, MapPin, Sprout, Weight, PackageCheck, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface CreateBatchScreenProps {
   onSaveBatch: (batch: OnionBatch) => void;
@@ -28,6 +29,7 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
   onSaveBatch,
   onCancel,
 }) => {
+  const { t } = useLanguage();
   const [farmerName, setFarmerName] = useState('Dattatray Shinde');
   const [farmerPhone, setFarmerPhone] = useState('+91 98901 23456');
   const [mandiLocation, setMandiLocation] = useState(MANDI_LOCATIONS[0]);
@@ -42,17 +44,17 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!farmerName.trim()) {
-      setError('Please enter farmer or lot owner name');
+      setError(t.createBatch.errorNameRequired);
       return;
     }
     const weightNum = parseFloat(weightQuintals);
     const bagNum = parseInt(bagCount, 10);
     if (isNaN(weightNum) || weightNum <= 0) {
-      setError('Please enter valid weight in quintals');
+      setError(t.createBatch.errorWeightInvalid);
       return;
     }
     if (isNaN(bagNum) || bagNum <= 0) {
-      setError('Please enter valid bag count');
+      setError(t.createBatch.errorBagCountInvalid);
       return;
     }
 
@@ -91,14 +93,14 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
       <div className="bg-[#7C2D12]/5 border border-[#7C2D12]/20 rounded-xl p-4 flex gap-3 text-slate-800">
         <Info className="w-5 h-5 text-[#7C2D12] shrink-0 mt-0.5" />
         <div className="text-xs leading-relaxed">
-          <span className="font-bold text-[#7C2D12]">Mandi Digital Traceability: </span>
-          Assign a certified digital lot identifier to the incoming onion harvest. A cryptographic QR code payload will be generated for tamper-proof weighing, inspection, and auction grading.
+          <span className="font-bold text-[#7C2D12]">{t.createBatch.traceabilityTitle} </span>
+          {t.createBatch.traceabilityDesc}
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-xs">
         <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-          Farmer & Lot Registration
+          {t.createBatch.formTitle}
         </h3>
 
         {error && (
@@ -111,14 +113,14 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-slate-400" />
-              <span>Farmer / Trader Full Name</span>
+              <span>{t.createBatch.farmerNameLabel}</span>
             </label>
             <input
               type="text"
               required
               value={farmerName}
               onChange={(e) => setFarmerName(e.target.value)}
-              placeholder="e.g. Ramesh Patil"
+              placeholder={t.createBatch.farmerNamePlaceholder}
               className="w-full text-xs px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#7C2D12] focus:outline-none"
             />
           </div>
@@ -126,13 +128,13 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5 text-slate-400" />
-              <span>Mobile Number</span>
+              <span>{t.createBatch.farmerPhoneLabel}</span>
             </label>
             <input
               type="text"
               value={farmerPhone}
               onChange={(e) => setFarmerPhone(e.target.value)}
-              placeholder="+91 98231 00000"
+              placeholder={t.createBatch.farmerPhonePlaceholder}
               className="w-full text-xs px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#7C2D12] focus:outline-none"
             />
           </div>
@@ -142,7 +144,7 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              <span>Mandi APMC Yard</span>
+              <span>{t.createBatch.mandiLocationLabel}</span>
             </label>
             <select
               value={mandiLocation}
@@ -160,7 +162,7 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <Sprout className="w-3.5 h-3.5 text-slate-400" />
-              <span>Onion Variety</span>
+              <span>{t.createBatch.onionVarietyLabel}</span>
             </label>
             <select
               value={onionVariety}
@@ -180,7 +182,7 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <Weight className="w-3.5 h-3.5 text-slate-400" />
-              <span>Weight (Quintals)</span>
+              <span>{t.createBatch.weightLabel}</span>
             </label>
             <input
               type="number"
@@ -195,7 +197,7 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <PackageCheck className="w-3.5 h-3.5 text-slate-400" />
-              <span>Bag Count</span>
+              <span>{t.createBatch.bagCountLabel}</span>
             </label>
             <input
               type="number"
@@ -208,7 +210,7 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
 
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-slate-700">
-              Harvest / Curing Date
+              {t.createBatch.harvestDateLabel}
             </label>
             <input
               type="date"
@@ -223,15 +225,15 @@ export const CreateBatchScreen: React.FC<CreateBatchScreenProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
           >
-            Cancel
+            {t.common.cancel}
           </button>
           <button
             type="submit"
-            className="px-5 py-2.5 text-xs font-bold bg-[#7C2D12] text-white hover:bg-[#68250e] rounded-lg shadow-sm flex items-center gap-2 transition-colors"
+            className="px-5 py-2.5 text-xs font-bold bg-[#7C2D12] text-white hover:bg-[#68250e] rounded-lg shadow-sm flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <span>Register & Generate QR</span>
+            <span>{t.createBatch.submitButton}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

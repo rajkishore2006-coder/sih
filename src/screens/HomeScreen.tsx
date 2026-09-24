@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { OnionBatch, OnionInspection } from '../types';
 import { KpiBanner } from '../components/KpiBanner';
 import {
@@ -11,6 +11,7 @@ import {
   Layers,
   History,
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HomeScreenProps {
   batches: OnionBatch[];
@@ -33,6 +34,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenVerify,
   onOpenHistory,
 }) => {
+  const { t, interpolate } = useLanguage();
   const [filter, setFilter] = useState<'All' | 'Certified' | 'Inspected' | 'Pending'>('All');
 
   const filteredBatches = batches.filter((b) => {
@@ -71,29 +73,39 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       case 'certified':
         return (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Certified {batch.latestGrade ? `(${batch.latestGrade})` : ''}
+            {t.common.certified} {batch.latestGrade ? `(${batch.latestGrade})` : ''}
           </span>
         );
       case 'inspected':
         return (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-            Inspected {batch.latestGrade ? `(${batch.latestGrade})` : ''}
+            {t.common.inspected} {batch.latestGrade ? `(${batch.latestGrade})` : ''}
           </span>
         );
       case 'rejected':
         return (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-            Rejected
+            {t.common.rejected}
           </span>
         );
       default:
         return (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-            Pending Inspection
+            {t.common.pending}
           </span>
         );
     }
   };
+
+  const filterTabs = [
+    { key: 'All' as const, label: t.dashboard.filterAll },
+    { key: 'Certified' as const, label: t.dashboard.filterCertified },
+    { key: 'Inspected' as const, label: t.dashboard.filterInspected },
+    { key: 'Pending' as const, label: t.dashboard.filterPending },
+  ];
+
+  const currentTabObj = filterTabs.find((ft) => ft.key === filter);
+  const currentTabLabel = currentTabObj ? currentTabObj.label : filter;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -115,8 +127,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-10 h-10 rounded-full bg-[#7C2D12]/10 text-[#7C2D12] flex items-center justify-center mb-2">
             <PlusCircle className="w-5 h-5" />
           </div>
-          <span className="text-xs font-bold text-slate-800">Register Batch</span>
-          <span className="text-[10px] text-slate-500">Mandi Lot Arrival</span>
+          <span className="text-xs font-bold text-slate-800">{t.dashboard.registerBatchAction}</span>
+          <span className="text-[10px] text-slate-500">{t.dashboard.registerBatchDesc}</span>
         </button>
 
         <button
@@ -127,8 +139,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-10 h-10 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center mb-2">
             <Camera className="w-5 h-5" />
           </div>
-          <span className="text-xs font-bold text-slate-800">Inspect Heap</span>
-          <span className="text-[10px] text-slate-500">AI Computer Vision</span>
+          <span className="text-xs font-bold text-slate-800">{t.dashboard.inspectHeapAction}</span>
+          <span className="text-[10px] text-slate-500">{t.dashboard.inspectHeapDesc}</span>
         </button>
 
         <button
@@ -139,8 +151,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center mb-2">
             <QrCode className="w-5 h-5" />
           </div>
-          <span className="text-xs font-bold text-slate-800">Scan QR Code</span>
-          <span className="text-[10px] text-slate-500">Lot Bag Tag</span>
+          <span className="text-xs font-bold text-slate-800">{t.dashboard.scanQrAction}</span>
+          <span className="text-[10px] text-slate-500">{t.dashboard.scanQrDesc}</span>
         </button>
 
         <button
@@ -151,8 +163,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center mb-2">
             <ShieldCheck className="w-5 h-5" />
           </div>
-          <span className="text-xs font-bold text-slate-800">Verify Certificate</span>
-          <span className="text-[10px] text-slate-500">e-NAM Verification</span>
+          <span className="text-xs font-bold text-slate-800">{t.dashboard.verifyCertAction}</span>
+          <span className="text-[10px] text-slate-500">{t.dashboard.verifyCertDesc}</span>
         </button>
 
         <button
@@ -163,9 +175,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mb-2">
             <History className="w-5 h-5" />
           </div>
-          <span className="text-xs font-bold text-slate-800">Inspections Log</span>
+          <span className="text-xs font-bold text-slate-800">{t.dashboard.inspectionLogAction}</span>
           <span className="text-[10px] text-slate-500">
-            {inspections.length} Saved
+            {inspections.length} {t.dashboard.savedCount}
           </span>
         </button>
       </div>
@@ -176,30 +188,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-[#7C2D12]" />
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
-              Registered Onion Batches
+              {t.dashboard.registeredBatchesTitle}
             </h3>
           </div>
           <span className="text-xs text-slate-500 font-medium">
-            {filteredBatches.length} of {batches.length} lots
+            {filteredBatches.length} {interpolate(t.dashboard.batchesOfTotal, { total: batches.length })}
           </span>
         </div>
 
         {/* Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {(['All', 'Certified', 'Inspected', 'Pending'] as const).map((tab) => {
-            const isSelected = filter === tab;
+          {filterTabs.map((tab) => {
+            const isSelected = filter === tab.key;
             return (
               <button
-                key={tab}
+                key={tab.key}
                 type="button"
-                onClick={() => setFilter(tab)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                onClick={() => setFilter(tab.key)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-[#7C2D12] text-white shadow-xs'
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {tab}
+                {tab.label}
               </button>
             );
           })}
@@ -210,7 +222,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
             <Package className="w-8 h-8 text-slate-400 mx-auto mb-2" />
             <p className="text-xs text-slate-600 font-medium">
-              No batches found for "{filter}"
+              {interpolate(t.dashboard.noBatchesFound, { filter: currentTabLabel })}
             </p>
           </div>
         ) : (
@@ -236,7 +248,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       {batch.farmerName} • {batch.mandiLocation}
                     </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">
-                      {batch.onionVariety} • {batch.weightQuintals} Qtl ({batch.bagCount} bags)
+                      {batch.onionVariety} • {batch.weightQuintals} {t.common.qtl} ({batch.bagCount} {t.common.bags})
                     </div>
                   </div>
                 </div>
@@ -253,10 +265,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <button
           type="button"
           onClick={() => onOpenInspection()}
-          className="w-full py-3 px-4 rounded-xl bg-[#7C2D12] text-white font-bold text-sm shadow-md hover:bg-[#68250e] flex items-center justify-center gap-2 transition-colors"
+          className="w-full py-3 px-4 rounded-xl bg-[#7C2D12] text-white font-bold text-sm shadow-md hover:bg-[#68250e] flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           <Camera className="w-4 h-4" />
-          <span>Analyze Onion Heap with Computer Vision</span>
+          <span>{t.dashboard.analyzeHeapCta}</span>
         </button>
       </div>
     </div>

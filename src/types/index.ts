@@ -104,6 +104,25 @@ export interface OnionDetectionItem {
   grade: QualityGrade;
   estimatedDiameterMm: number;
   severityScore: number;
+  isEdgeOnion?: boolean;
+}
+
+export interface DeveloperDiagnostics {
+  modelName: string;
+  modelVersion: string;
+  rawDetections: number;
+  finalDetections: number;
+  nmsSuppressed: number;
+  preprocessingTimeMs: number;
+  inferenceTimeMs: number;
+  postprocessingTimeMs: number;
+  totalTimeMs: number;
+  imageSize: {
+    width: number;
+    height: number;
+    sizeBytes: number;
+    exifRotationDegrees?: number;
+  };
 }
 
 export interface GradeDistributionModel {
@@ -135,6 +154,7 @@ export interface HeapAnalysisResult {
   warnings: string[];
   disclaimer: string;
   annotatedImageBase64?: string | null;
+  diagnostics?: DeveloperDiagnostics;
 }
 
 export interface OnionInspection {

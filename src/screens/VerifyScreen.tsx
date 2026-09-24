@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { OnionBatch, OnionInspection } from '../types';
 import { ShieldCheck, Search, CheckCircle2, AlertCircle, ArrowRight, Download, Check } from 'lucide-react';
 import { generateNativeVectorPdf } from '../utils/certificateGenerator';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface VerifyScreenProps {
   batches: OnionBatch[];
@@ -15,6 +16,7 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
   inspections,
   onViewReport,
 }) => {
+  const { t } = useLanguage();
   const [tokenQuery, setTokenQuery] = useState(
     () => (inspections.length > 0 ? inspections[0].verificationToken : '')
   );
@@ -68,17 +70,17 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900">
-              e-NAM Certificate Authenticity Verification
+              {t.verifyScreen.title}
             </h2>
             <p className="text-xs text-slate-500">
-              Verify digital AGMARK grading certificates issued to mandi onion lots
+              {t.verifyScreen.subtitle}
             </p>
           </div>
         </div>
 
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-slate-700">
-            Enter Verification Token or Batch Number:
+            {t.verifyScreen.tokenInputLabel}
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -90,7 +92,7 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
                   setSearched(false);
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="e.g. VERIF-NSK-8921-A or BATCH-2026-NSK-104"
+                placeholder={t.verifyScreen.tokenInputPlaceholder}
                 className="w-full text-xs pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#7C2D12] focus:outline-none font-mono"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
@@ -98,9 +100,9 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
             <button
               type="button"
               onClick={handleSearch}
-              className="px-4 py-2.5 bg-[#7C2D12] text-white text-xs font-bold rounded-lg hover:bg-[#68250e] transition-colors shrink-0"
+              className="px-4 py-2.5 bg-[#7C2D12] text-white text-xs font-bold rounded-lg hover:bg-[#68250e] transition-colors shrink-0 cursor-pointer"
             >
-              Verify Record
+              {t.verifyScreen.verifyBtn}
             </button>
           </div>
         </div>
@@ -108,7 +110,7 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
         {/* Quick Test Tokens */}
         <div>
           <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
-            Active Mandi Certified Tokens:
+            {t.verifyScreen.activeTokensLabel}
           </span>
           <div className="flex flex-wrap gap-1.5">
             {inspections.map((i) => (
@@ -119,7 +121,7 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
                   setTokenQuery(i.verificationToken);
                   setSearched(false);
                 }}
-                className="text-[11px] font-mono px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                className="text-[11px] font-mono px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer"
               >
                 {i.verificationToken}
               </button>
@@ -136,7 +138,7 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  <span>Valid & Cryptographically Verified Lot Certificate</span>
+                  <span>{t.verifyScreen.validTitle}</span>
                 </div>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
                   {foundRecord.inspection.assignedGrade}
@@ -146,15 +148,15 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
               <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                    Batch Number:
+                    {t.verifyScreen.batchNumberLabel}:
                   </span>
-                  <span className="font-bold text-slate-900">
+                  <span className="font-bold text-slate-900 font-mono">
                     {foundRecord.batch.batchNumber}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                    Farmer / Lot Owner:
+                    {t.verifyScreen.farmerLabel}:
                   </span>
                   <span className="font-semibold text-slate-800">
                     {foundRecord.batch.farmerName}
@@ -162,63 +164,71 @@ export const VerifyScreen: React.FC<VerifyScreenProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                    APMC Mandi:
+                    {t.verifyScreen.mandiLabel}:
                   </span>
-                  <span className="font-medium text-slate-800">
+                  <span className="text-slate-700">
                     {foundRecord.batch.mandiLocation}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                    Authorized Inspector:
+                    {t.verifyScreen.gradeAssignedLabel}:
                   </span>
-                  <span className="font-medium text-slate-800">
-                    {foundRecord.inspection.inspectorName} (
-                    {foundRecord.inspection.inspectorId})
+                  <span className="font-bold text-emerald-700">
+                    {foundRecord.inspection.assignedGrade}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
+                    {t.verifyScreen.timestampLabel}:
+                  </span>
+                  <span className="text-slate-600">
+                    {new Date(foundRecord.inspection.timestamp).toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2">
+              <p className="text-xs text-slate-500">
+                {t.verifyScreen.verifiedSummary}
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={handleDownloadVerifiedPdf}
-                  className="flex-1 py-2.5 px-4 rounded-lg bg-[#7C2D12] text-white text-xs font-bold hover:bg-[#68250e] flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-                  title="Directly download certified PDF verification report"
+                  className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   {downloaded ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-300" />
-                      <span>Downloaded PDF!</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{t.common.downloaded}</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
-                      <span>Download Certificate PDF</span>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>{t.common.downloadPdf}</span>
                     </>
                   )}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    onViewReport(foundRecord.batch, foundRecord.inspection)
-                  }
-                  className="flex-1 py-2.5 px-4 rounded-lg border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={() => onViewReport(foundRecord.batch, foundRecord.inspection)}
+                  className="px-4 py-2 rounded-lg bg-[#7C2D12] text-white text-xs font-bold hover:bg-[#68250e] flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <span>View Official Certificate</span>
+                  <span>{t.verifyScreen.viewCertBtn}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-red-200 p-6 text-center space-y-1">
-              <AlertCircle className="w-7 h-7 text-red-500 mx-auto mb-1" />
-              <div className="text-xs font-bold text-slate-800">
-                No Certified Record Found
+            <div className="bg-white rounded-xl border border-red-200 p-6 text-center space-y-2 text-xs text-red-700 bg-red-50/50">
+              <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
+              <div className="font-bold text-sm text-red-900">
+                {t.verifyScreen.invalidTitle}
               </div>
-              <p className="text-[11px] text-slate-500">
-                Token "{tokenQuery}" does not match any authenticated mandi inspection record.
+              <p className="text-red-700 max-w-md mx-auto">
+                {t.verifyScreen.invalidMessage}
               </p>
             </div>
           )}

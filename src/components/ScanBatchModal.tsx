@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QrCode, X, Search } from 'lucide-react';
 import { OnionBatch } from '../types';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ScanBatchModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
   batches,
   onSelectBatch,
 }) => {
+  const { t, interpolate } = useLanguage();
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
 
@@ -23,7 +25,7 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
   const handleSearch = () => {
     const clean = query.trim().toLowerCase();
     if (!clean) {
-      setError('Please enter a batch number');
+      setError(t.scanModal.errorEmpty);
       return;
     }
 
@@ -38,7 +40,7 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
       onSelectBatch(found.id);
       onClose();
     } else {
-      setError(`No batch record found matching "${query}"`);
+      setError(interpolate(t.scanModal.errorNotFound, { query }));
     }
   };
 
@@ -48,11 +50,12 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
             <QrCode className="w-5 h-5 text-[#7C2D12]" />
-            <span>Scan or Enter Batch QR / Code</span>
+            <span>{t.scanModal.title}</span>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+            title={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -60,7 +63,7 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
 
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-600">
-            Enter a Batch Number or paste the digital QR payload tagged on the mandi lot bag:
+            {t.scanModal.desc}
           </p>
 
           <div className="relative">
@@ -72,8 +75,8 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
                 setError('');
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="e.g. BATCH-2026-NSK-104"
-              className="w-full text-xs pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7C2D12]"
+              placeholder={t.scanModal.placeholder}
+              className="w-full text-xs pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7C2D12] font-mono"
             />
             <QrCode className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
           </div>
@@ -82,7 +85,7 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
 
           <div>
             <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
-              Quick Test Samples:
+              {t.scanModal.testSamples}
             </span>
             <div className="flex flex-wrap gap-1.5">
               {batches.slice(0, 3).map((b) => (
@@ -93,7 +96,7 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
                     setQuery(b.batchNumber);
                     setError('');
                   }}
-                  className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors"
+                  className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
                 >
                   {b.batchNumber}
                 </button>
@@ -105,16 +108,16 @@ export const ScanBatchModal: React.FC<ScanBatchModalProps> = ({
         <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
           >
-            Cancel
+            {t.common.cancel}
           </button>
           <button
             onClick={handleSearch}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#7C2D12] text-white hover:bg-[#63230e] flex items-center gap-1.5 transition-colors shadow-xs"
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#7C2D12] text-white hover:bg-[#63230e] flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Search className="w-3.5 h-3.5" />
-            <span>Find Batch</span>
+            <span>{t.scanModal.findBatch}</span>
           </button>
         </div>
       </div>
