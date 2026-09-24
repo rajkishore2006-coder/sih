@@ -1,0 +1,367 @@
+{
+  "@@locale": "en",
+  "appName": "OnionSure",
+  "@appName": {
+    "description": "The application title"
+  },
+  "dashboardTitle": "Mandi Quality Monitoring Dashboard",
+  "enamReady": "e-NAM Integration Ready",
+  "dashboardSubtitle": "APMC Central Yard - Live AI Quality Grading & Traceability",
+  "totalBatches": "Total Batches",
+  "inspected": "Inspected",
+  "avgGradeA": "Avg Grade A",
+  "totalVolume": "Total Volume",
+  "volumeQuintals": "{weight} Qtl",
+  "@volumeQuintals": {
+    "placeholders": {
+      "weight": {
+        "type": "String"
+      }
+    }
+  },
+  "bagsUnit": "Bags",
+  "bags": "bags",
+  "newBatch": "Register Batch",
+  "inspectHeap": "Inspect Heap",
+  "scanQr": "Scan QR Code",
+  "verifyCert": "Verify Certificate",
+  "mandiLots": "Registered Onion Batches",
+  "searchHint": "Search batch #, farmer, or mandi...",
+  "filterAll": "All",
+  "filterPending": "Pending",
+  "filterInspected": "Inspected",
+  "filterCertified": "Certified",
+  "filterRejected": "Rejected",
+  "noBatchesFound": "No batches found",
+  "noBatchesFoundFor": "No batches found for \"{filter}\"",
+  "@noBatchesFoundFor": {
+    "placeholders": {
+      "filter": {
+        "type": "String"
+      }
+    }
+  },
+  "noBatchesSub": "Create a new batch or adjust your search filter to get started.",
+  "clearFilter": "Clear Filter",
+  "varietyLabel": "Variety:",
+  "volumeLabel": "Volume:",
+  "qualityScoreLabel": "Quality Score:",
+  "createdLabel": "Created:",
+  "statusPending": "Pending",
+  "statusInspected": "Inspected",
+  "statusCertified": "Certified",
+  "statusRejected": "Rejected",
+  "selectLanguage": "Select Language",
+  "english": "English",
+  "tamil": "தமிழ்",
+  "hindi": "हिन्दी",
+  "languageChanged": "Language changed successfully",
+
+  "demoAi": "Demo AI",
+  "liveApi": "Live API",
+  "aiConfigTitle": "AI Inference Configuration",
+  "demoModeTitle": "Demo Presentation Mode",
+  "demoModeSubtitle": "Instant simulated onion heap inference without active backend server",
+  "fastApiEndpoint": "FastAPI Endpoint URL:",
+  "fastApiHint": "Run \"python3 app/main.py\" in backend/ directory",
+  "apply": "Apply",
+  "cancel": "Cancel",
+  "scanOrEnterBatchCode": "Scan or Enter Batch QR / Code",
+  "scanBatchInstruction": "Enter a Batch Number or scan QR code on the farmer lot bag:",
+  "findBatch": "Find Batch",
+  "batchSample": "Sample",
+  "analyzeHeapButton": "Analyze Onion Heap",
+
+  "registerNewBatch": "Register Onion Batch",
+  "registerBatchSubtitle": "Assign a digital batch record to the onion arrival. A traceable QR code will be generated for mandi tracking.",
+  "farmerDetails": "Farmer & Lot Information",
+  "farmerName": "Farmer / Trader Full Name",
+  "enterFarmerName": "Enter farmer full name",
+  "pleaseEnterFarmerName": "Farmer name is required",
+  "phoneNumber": "Mobile Number",
+  "enterPhoneNumber": "10-digit mobile number",
+  "pleaseEnterPhone": "Please enter contact number",
+  "pleaseEnterValidPhone": "Please enter valid 10-digit number",
+  "mandiYard": "Mandi APMC Yard",
+  "enterMandiYard": "e.g. Lasalgaon, Nashik APMC",
+  "pleaseEnterMandi": "Please specify mandi location",
+  "lotSpecification": "Mandi & Crop Specification",
+  "onionVariety": "Onion Variety",
+  "harvestDate": "Harvest Date",
+  "lotVolume": "Lot Volume",
+  "weightQuintalsLabel": "Weight (Quintals)",
+  "bagCountLabel": "Bag Count",
+  "estimatedBags": "Estimated Bags / Crates",
+  "enterBagCount": "Total quantity in bags",
+  "pleaseEnterBags": "Enter bag count",
+  "enterValidWeight": "Enter valid weight",
+  "approxWeightPerBag": "Approx. Weight per Bag (kg)",
+  "storageCondition": "Storage Condition",
+  "notesFieldObservations": "Notes / Field Observations (Optional)",
+  "enterNotes": "Add any notes on curing, skin adherence, or field observations...",
+  "registerLotButton": "Create Batch & Generate QR",
+  "batchCreatedSuccess": "Batch registered successfully",
+
+  "heapInspectionTitle": "Analyze Onion Heap",
+  "heapInspectionSubtitle": "Capture or select a clear top-down heap photo",
+  "inspectionTargetBatch": "Inspection Target Batch",
+  "heapImageCapture": "Heap Image Capture",
+  "heapImageInstructions": "Photograph or upload an unobstructed top/angle view of the onion heap.",
+  "takePhoto": "Take Photo",
+  "uploadFile": "Upload File",
+  "chooseFromGallery": "Choose from Gallery",
+  "quickPresets": "Quick Presets:",
+  "sampleNashikRed": "Lasalgaon Red",
+  "sampleCommercialBulk": "Garva Mix",
+  "sampleFieldHarvest": "Sprout/Rot Heap",
+  "photoReady": "Sample Onion Heap Loaded",
+  "readyForAi": "Ready for AI Computer Vision",
+  "tapToChange": "Tap above to change image",
+  "inspectionParameters": "Inspection Parameters",
+  "inspectorNameLabel": "Inspector Name",
+  "inspectorIdLabel": "Inspector ID",
+  "sampleBagWeightLabel": "Sample Bag Weight (kg)",
+  "observationsNotesLabel": "Lot Observations / Notes",
+  "runAiAnalysis": "Run AI Heap Segmentation & Grading",
+  "stepReady": "Ready",
+  "stepUploading": "Uploading heap image to inference pipeline...",
+  "stepExtracting": "Extracting visible onion instance boundaries...",
+  "stepClassifying": "Classifying defects: healthy, rot, sprout, damage...",
+  "stepFinalizing": "Finalizing AGMARK Grade A/B/Reject metrics...",
+  "analysisFailed": "Analysis failed: {error}",
+  "@analysisFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "pleaseSelectImage": "Please select or capture an onion heap image",
+  "bestPracticesTitle": "Inspection Best Practices",
+  "tip1": "Keep entire top layer in frame for representative sampling",
+  "tip2": "Ensure uniform diffused lighting (avoid harsh shadows)",
+  "tip3": "Remove large debris or sacking covering the pile",
+
+  "heapQualityResults": "Heap Quality Estimation Results",
+  "assignedLotGrade": "Assigned Lot Grade: {grade}",
+  "@assignedLotGrade": {
+    "placeholders": {
+      "grade": {
+        "type": "String"
+      }
+    }
+  },
+  "bulbsVisible": "{count} bulbs visible",
+  "@bulbsVisible": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "confidencePercent": "{value}% confidence",
+  "@confidencePercent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyMs": "{ms} ms",
+  "@latencyMs": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "instanceSegmentation": "Instance Segmentation Overlay",
+  "tapBulbHint": "Tap any onion bulb to view diameter, defect type, and confidence score.",
+  "prototypeEngine": "Prototype Inference Engine",
+  "fineTunedEngine": "Fine-Tuned YOLO11-Seg",
+  "visionWarnings": "Vision Quality Warnings ({count})",
+  "@visionWarnings": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "generatePdfReport": "Generate Digital PDF Report",
+  "saveAndCertify": "Save & Certify Batch",
+  "inspectionSavedSuccessWithGrade": "Inspection saved! Batch certified as {grade}.",
+  "@inspectionSavedSuccessWithGrade": {
+    "placeholders": {
+      "grade": {
+        "type": "String"
+      }
+    }
+  },
+
+  "polygonsLabel": "Polygons",
+  "boxesLabel": "Boxes",
+  "labelsLabel": "Labels",
+  "allDefects": "All Defects",
+  "filterDefectAll": "Filter defect: All",
+  "bulbDetailText": "Onion #{id}: {defect}",
+  "@bulbDetailText": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      },
+      "defect": {
+        "type": "String"
+      }
+    }
+  },
+  "bulbMetaInfo": "Grade: {grade} • Est. Diameter: {diameter} mm • Conf: {confidence}%",
+  "@bulbMetaInfo": {
+    "placeholders": {
+      "grade": {
+        "type": "String"
+      },
+      "diameter": {
+        "type": "String"
+      },
+      "confidence": {
+        "type": "String"
+      }
+    }
+  },
+
+  "digitalGradeDistribution": "Digital Quality Grade Distribution",
+  "gradeAExport": "Grade A (Export)",
+  "gradeBLocal": "Grade B (Local)",
+  "rejectWaste": "Reject / Waste",
+  "targetGradeA": "Target >= 70%",
+  "minorDefects": "Minor defects",
+  "rotSprout": "Rot / Sprout",
+  "defectBreakdown": "Visible Defect Breakdown",
+
+  "disclaimerTitle": "VISIBLE SURFACE ESTIMATION LIMITATION",
+  "disclaimerText": "Surface vision analysis estimates visible top-layer quality. Physical core sampling remains recommended for deep bulk lots.",
+
+  "qualityHealthy": "Healthy",
+  "qualityDamaged": "Damaged",
+  "qualityRotten": "Rotten",
+  "qualitySprouted": "Sprouted",
+  "qualityUndersized": "Undersized",
+  "qualityUnknown": "Unknown",
+
+  "gradeA": "Grade A",
+  "gradeB": "Grade B",
+  "gradeC": "Reject",
+
+  "batchDetails": "Batch Details",
+  "analyzeHeapForBatch": "Analyze Onion Heap for this Batch",
+  "completedInspections": "Completed Quality Inspections",
+  "noInspectionsYet": "No inspection recorded for this batch yet.\nClick \"Analyze Onion Heap\" to scan.",
+  "viewPdf": "View PDF",
+  "inspectionTitle": "Inspection: {grade}",
+  "@inspectionTitle": {
+    "placeholders": {
+      "grade": {
+        "type": "String"
+      }
+    }
+  },
+
+  "verifyCertificateTitle": "e-NAM Quality Certificate Verification",
+  "publicVerification": "Public Certificate Verification",
+  "verifySubtitle": "Enter the verification token printed beneath the report QR code to confirm grading authenticity and tamper-proof records.",
+  "verifyButton": "Verify",
+  "authenticCertificate": "AUTHENTIC QUALITY CERTIFICATE",
+  "recordNotFound": "Certificate Record Not Found",
+  "recordNotFoundMsg": "The verification token \"{query}\" was not found in the authenticated mandi database.",
+  "@recordNotFoundMsg": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenLabel": "Token: {token}",
+  "@tokenLabel": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "batchNumberLabel": "Batch Number",
+  "certifiedInspector": "Certified Inspector",
+  "inspectionTimestamp": "Inspection Timestamp",
+  "visibleSampleCount": "Visible Sample Count",
+  "gradeARatio": "Grade A Ratio",
+  "gradeBRatio": "Grade B Ratio",
+  "rejectionRate": "Rejection Rate",
+  "modelConfidence": "Model Confidence",
+  "bulbsScannedCount": "{count} bulbs scanned",
+  "@bulbsScannedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "digitalCertificate": "Digital Quality Certificate",
+  "shareCertificate": "Share Certificate",
+  "verificationRibbon": "Verification Token: {token} • Signed by {inspector}",
+  "@verificationRibbon": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      },
+      "inspector": {
+        "type": "String"
+      }
+    }
+  },
+
+  "certTitle": "ONIONSURE DIGITAL QUALITY CERTIFICATE",
+  "certSub": "SIH26031: AI-Powered Smart Onion Batch Grading",
+  "certMandiRecord": "Accredited Mandi APMC Inspection Record",
+  "certBatchRegistration": "BATCH & LOT REGISTRATION",
+  "certInspectionDate": "Inspection Date",
+  "certFarmerOwner": "Farmer / Lot Owner",
+  "certMandiYard": "Mandi Yard",
+  "certVariety": "Onion Variety",
+  "certTotalWeight": "Total Weight",
+  "certAssignedInspector": "Assigned Inspector",
+  "certVerificationToken": "Verification Token",
+  "certGradingSection": "HEAP INSTANCE SEGMENTATION & DIGITAL GRADING",
+  "certMetric": "Metric",
+  "certComputedValue": "Computed Value",
+  "certGradingSpec": "Grading Standard Specification",
+  "certVisibleScanned": "Visible Onions Scanned",
+  "certVisibleBulbs": "{count} bulbs",
+  "@certVisibleBulbs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "certSurfaceExtraction": "Surface polygon boundary extraction",
+  "certGradeARatio": "Grade A Quality Ratio",
+  "certGradeASpec": "Standard: >= 70% for Grade A certification",
+  "certGradeBRatio": "Grade B Fair Ratio",
+  "certGradeBSpec": "Permissible minor skin cuts / size variance",
+  "certRejectRatio": "Rejection / Waste Ratio",
+  "certRejectSpec": "Rot, decay, sprouting > 5% restricts trade",
+  "certConfidenceScore": "Model Confidence Score",
+  "certMultiContour": "Multi-contour overlap verification",
+  "certDefectBreakdown": "DEFECT CLASSIFICATION BREAKDOWN",
+  "certDisclaimerHeader": "IMPORTANT ESTIMATION BOUNDARY & MANDI DISCLAIMER",
+  "certScanQr": "Scan QR to verify on e-NAM portal",
+  "certGraderSignature": "Authorized Quality Grader Signature",
+  "certDate": "Date: {date}",
+  "@certDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  }
+}
