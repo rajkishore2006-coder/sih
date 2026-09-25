@@ -1,68 +1,82 @@
+"""Unit tests for QualityClassifier."""
 import unittest
+import random
+from backend.app.schemas.analysis import BoundingBox, Point2D, DetectionItem
 from backend.app.services.quality_classifier import QualityClassifier
-from backend.app.schemas.analysis import BoundingBox, DetectedOnion, Point2D
+
 
 class TestQualityClassifier(unittest.TestCase):
-    def test_undersized_defect_classification(self):
-        # Diameter < 40mm must be classified as Undersized under APMC rules
-        defect, grade, sev = QualityClassifier.classify_defect(
-            base_confidence=0.90, diameter_mm=36.0
-        )
-        self.assertEqual(defect, "Undersized")
-        self.assertEqual(grade, "Grade B")
+    def setUp(self):
+        self.classifier = QualityClassifier()
+        self.prng = random.Random(42)
 
-    def test_sprouted_defect_classification(self):
-        defect, grade, sev = QualityClassifier.classify_defect(
-            base_confidence=0.88, diameter_mm=55.0, neck_extension=0.75
-        )
-        self.assertEqual(defect, "Sprouted")
-        self.assertEqual(grade, "Reject")
+    def _make_candidate(self, id_num: int, defect_hint: str, dia: float = 50.0):
+        return {
+            "id": id_num,
+            "bbox": BoundingBox(ymin=0.1, xmin=0.1, ymax=0.3, xmax=0.3),
+            "polygon": [Point2D(x=0.2, y=0.2)],
+            "confidence": 0.90,
+            "defect_hint": defect_hint,
+            "diameter_mm": dia,
+            "is_edge_onion": False,
+        }
 
-    def test_rotten_defect_classification(self):
-        defect, grade, sev = QualityClassifier.classify_defect(
-            base_confidence=0.85, diameter_mm=52.0, color_variation=0.70, surface_roughness=0.55
-        )
-        self.assertEqual(defect, "Rotten")
-        self.assertEqual(grade, "Reject")
+    def test_healthy_large_onion_grade_a(self):
+        candidate = self._make_candidate(1, "Healthy", dia=55.0)
+        item = self.classifier.classify_detection(candidate, self.prng)
+        self.assertEqual(item.defect_type, "Healthy")
+        self.assertEqual(item.grade, "Grade A")
+        self.assertLessEqual(item.severity_score, 0.15)
 
-    def test_damaged_defect_classification(self):
-        defect, grade, sev = QualityClassifier.classify_defect(
-            base_confidence=0.92, diameter_mm=54.0, surface_roughness=0.52
-        )
-        self.assertEqual(defect, "Damaged")
-        self.assertEqual(grade, "Grade B")
+    def test_damaged_onion_grade_b(self):
+        candidate = self._make_candidate(2, "Damaged", dia=50.0)
+        item = self.classifier.classify_detection(candidate, self.prng)
+        self.assertEqual(item.defect_type, "Damaged")
+        self.assertEqual(item.grade, "Grade B")
+        self.assertGreater(item.severity_score, 0.35)
 
-    def test_lot_grading_grade_a(self):
-        poly = [Point2D(0, 0)]
-        bbox = BoundingBox(0.1, 0.1, 0.2, 0.2)
-        # 8 Healthy, 2 Damaged
-        dets = [
-            DetectedOnion(i, bbox, poly, 0.9, "Healthy", "Grade A", 55.0, 0.05)
-            for i in range(8)
-        ] + [
-            DetectedOnion(i+8, bbox, poly, 0.85, "Damaged", "Grade B", 50.0, 0.45)
-            for i in range(2)
+    def test_rotten_onion_reject(self):
+        candidate = self._make_candidate(3, "Rotten", dia=52.0)
+        item = self.classifier.classify_detection(candidate, self.prng)
+        self.assertEqual(item.defect_type, "Rotten")
+        self.assertEqual(item.grade, "Reject")
+        self.assertGreater(item.severity_score, 0.80)
+
+    def test_sprouted_onion_reject(self):
+        candidate = self._make_candidate(4, "Sprouted", dia=48.0)
+        item = self.classifier.classify_detection(candidate, self.prng)
+        self.assertEqual(item.defect_type, "Sprouted")
+        self.assertEqual(item.grade, "Reject")
+
+    def test_undersized_onion_grade_b(self):
+        candidate = self._make_candidate(5, "Undersized", dia=38.0)
+        item = self.classifier.classify_detection(candidate, self.prng)
+        self.assertEqual(item.defect_type, "Undersized")
+        self.assertEqual(item.grade, "Grade B")
+
+    def test_unknown_classification(self):
+        candidate = self._make_candidate(6, "Unknown", dia=50.0)
+        item = self.classifier.classify_detection(candidate, self.prng)
+        self.assertEqual(item.defect_type, "Unknown")
+        self.assertIn(item.grade, ["Grade A", "Grade B", "Reject"])
+
+    def test_summary_and_percentages_calculation(self):
+        detections = [
+            self.classifier.classify_detection(self._make_candidate(1, "Healthy", 55.0), self.prng),
+            self.classifier.classify_detection(self._make_candidate(2, "Healthy", 55.0), self.prng),
+            self.classifier.classify_detection(self._make_candidate(3, "Damaged", 50.0), self.prng),
+            self.classifier.classify_detection(self._make_candidate(4, "Rotten", 50.0), self.prng),
         ]
-        result = QualityClassifier.compute_lot_grades(dets)
-        self.assertEqual(result["assigned_grade"], "Grade A")
-        self.assertEqual(result["grades"]["grade_a_percent"], 80.0)
-        self.assertEqual(result["defects"]["healthy"], 8)
-        self.assertEqual(result["defects"]["damaged"], 2)
+        grades, defects = self.classifier.summarize_quality(detections)
 
-    def test_lot_grading_reject(self):
-        poly = [Point2D(0, 0)]
-        bbox = BoundingBox(0.1, 0.1, 0.2, 0.2)
-        # 5 Healthy, 5 Rotten/Sprouted -> 50% Reject
-        dets = [
-            DetectedOnion(i, bbox, poly, 0.9, "Healthy", "Grade A", 55.0, 0.05)
-            for i in range(5)
-        ] + [
-            DetectedOnion(i+5, bbox, poly, 0.85, "Rotten", "Reject", 50.0, 0.90)
-            for i in range(5)
-        ]
-        result = QualityClassifier.compute_lot_grades(dets)
-        self.assertEqual(result["assigned_grade"], "Reject")
-        self.assertEqual(result["grades"]["reject_percent"], 50.0)
+        self.assertEqual(defects.total, 4)
+        self.assertEqual(defects.healthy, 2)
+        self.assertEqual(defects.damaged, 1)
+        self.assertEqual(defects.rotten, 1)
+        self.assertEqual(grades.grade_a_percent, 50.0)
+        self.assertEqual(grades.grade_b_percent, 25.0)
+        self.assertEqual(grades.reject_percent, 25.0)
+
 
 if __name__ == "__main__":
     unittest.main()

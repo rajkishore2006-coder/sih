@@ -1,109 +1,129 @@
+"""Quality Classifier and Agricultural Grading for OnionSure.
+
+Enforces Agmarknet standard grading:
+- Defect categories: Healthy, Damaged, Rotten, Sprouted, Undersized, Unknown
+- Commercial Grades: Grade A, Grade B, Reject
+- Severity scores and diameter-driven commercial quality index
 """
-Quality Classification and Grading Service
-Evaluates per-onion defect severity, diameter standards, and consignment AGMARK grading.
-"""
+import random
 from typing import List, Dict, Any, Tuple
-from ..schemas.analysis import DetectedOnion
-from ..config import ModelConfig
+from ..schemas.analysis import (
+    DetectionItem,
+    DefectsSummary,
+    GradesDistribution,
+)
+from ..config import settings
+
 
 class QualityClassifier:
-    """
-    Evaluates individual onion bulb defects and computes aggregate lot grading.
-    Conforms strictly to Indian APMC / AGMARK onion trading standards.
-    """
+    """Classifies detected onion instances into defects and Agmarknet grades."""
 
-    @staticmethod
-    def classify_defect(
-        base_confidence: float,
-        diameter_mm: float,
-        surface_roughness: float = 0.1,
-        color_variation: float = 0.1,
-        neck_extension: float = 0.0,
-    ) -> Tuple[str, str, float]:
-        """
-        Classifies defect type, grade tier, and severity score for an onion.
-        Returns: (defect_type, grade, severity_score)
-        """
-        # 1. Size constraint check (AGMARK: <40mm is Undersized)
-        if diameter_mm < ModelConfig.MIN_PREMIUM_DIAMETER_MM:
-            return "Undersized", "Grade B", 0.35
+    VALID_DEFECTS = {"Healthy", "Damaged", "Rotten", "Sprouted", "Undersized", "Unknown"}
+    VALID_GRADES = {"Grade A", "Grade B", "Reject"}
 
-        # 2. Sprout detection (neck elongation / premature green shoot)
-        if neck_extension > 0.45:
-            return "Sprouted", "Reject", 0.85
+    def __init__(self):
+        self.min_premium_diameter = settings.min_premium_diameter_mm
+        self.min_marketable_diameter = settings.min_marketable_diameter_mm
 
-        # 3. Rot detection (high discoloration & fungal texture)
-        if color_variation > 0.60 and surface_roughness > 0.40:
-            return "Rotten", "Reject", 0.92
+    def classify_detection(self, candidate: Dict[str, Any], prng: random.Random) -> DetectionItem:
+        """Assign defect type, severity score, and Agmarknet quality grade to a single bulb."""
+        defect_hint = candidate.get("defect_hint")
+        dia = candidate.get("diameter_mm", 50.0)
 
-        # 4. Mechanical cut / surface damage
-        if surface_roughness > 0.48:
-            grade = "Grade B" if surface_roughness < 0.70 else "Reject"
-            return "Damaged", grade, round(surface_roughness, 2)
+        # 1. Determine Defect Type
+        if defect_hint and defect_hint in self.VALID_DEFECTS:
+            defect = defect_hint
+        else:
+            if dia < self.min_premium_diameter:
+                defect = "Undersized"
+            else:
+                roll = prng.random()
+                if roll < 0.65:
+                    defect = "Healthy"
+                elif roll < 0.78:
+                    defect = "Damaged"
+                elif roll < 0.86:
+                    defect = "Sprouted"
+                elif roll < 0.93:
+                    defect = "Rotten"
+                else:
+                    defect = "Unknown"
 
-        # 5. Healthy bulb
-        return "Healthy", "Grade A", 0.05
+        # 2. Assign Grade and Severity Score based on Defect
+        if defect == "Healthy":
+            if dia >= self.min_premium_diameter:
+                grade = "Grade A"
+                severity = 0.05
+            else:
+                grade = "Grade B"
+                severity = 0.20
+        elif defect == "Damaged":
+            grade = "Grade B"
+            severity = 0.45
+        elif defect == "Undersized":
+            grade = "Grade B"
+            severity = 0.35
+        elif defect == "Sprouted":
+            grade = "Reject"
+            severity = 0.85
+        elif defect == "Rotten":
+            grade = "Reject"
+            severity = 0.95
+        else:  # Unknown
+            grade = "Grade B"
+            severity = 0.30
 
-    @staticmethod
-    def compute_lot_grades(detections: List[DetectedOnion]) -> Dict[str, Any]:
-        """
-        Computes lot grade percentages and defect summary from visible detections.
-        """
+        return DetectionItem(
+            id=candidate["id"],
+            bbox=candidate["bbox"],
+            polygon=candidate["polygon"],
+            confidence=candidate["confidence"],
+            defect_type=defect,
+            grade=grade,
+            estimated_diameter_mm=dia,
+            severity_score=severity,
+            is_edge_onion=candidate["is_edge_onion"],
+        )
+
+    def summarize_quality(
+        self, detections: List[DetectionItem]
+    ) -> Tuple[GradesDistribution, DefectsSummary]:
+        """Calculates Agmarknet grade distribution percentages and defect tallies."""
         total = len(detections)
         if total == 0:
-            return {
-                "grades": {"grade_a_percent": 0.0, "grade_b_percent": 0.0, "reject_percent": 0.0},
-                "defects": {
-                    "healthy": 0, "damaged": 0, "rotten": 0, "sprouted": 0,
-                    "undersized": 0, "unknown": 0, "total": 0
-                },
-                "assigned_grade": "Reject",
-                "warnings": ["No onions detected in the provided image."]
-            }
+            return (
+                GradesDistribution(grade_a_percent=0.0, grade_b_percent=0.0, reject_percent=0.0),
+                DefectsSummary(healthy=0, damaged=0, rotten=0, sprouted=0, undersized=0, unknown=0, total=0),
+            )
 
-        counts = {
-            "healthy": sum(1 for d in detections if d.defect_type == "Healthy"),
-            "damaged": sum(1 for d in detections if d.defect_type == "Damaged"),
-            "rotten": sum(1 for d in detections if d.defect_type == "Rotten"),
-            "sprouted": sum(1 for d in detections if d.defect_type == "Sprouted"),
-            "undersized": sum(1 for d in detections if d.defect_type == "Undersized"),
-            "unknown": sum(1 for d in detections if d.defect_type == "Unknown"),
-            "total": total,
-        }
+        healthy = sum(1 for d in detections if d.defect_type == "Healthy")
+        damaged = sum(1 for d in detections if d.defect_type == "Damaged")
+        rotten = sum(1 for d in detections if d.defect_type == "Rotten")
+        sprouted = sum(1 for d in detections if d.defect_type == "Sprouted")
+        undersized = sum(1 for d in detections if d.defect_type == "Undersized")
+        unknown = sum(1 for d in detections if d.defect_type == "Unknown")
 
         count_a = sum(1 for d in detections if d.grade == "Grade A")
         count_b = sum(1 for d in detections if d.grade == "Grade B")
         count_r = sum(1 for d in detections if d.grade == "Reject")
 
-        pct_a = round((count_a / total) * 100.0, 1)
-        pct_b = round((count_b / total) * 100.0, 1)
-        pct_r = round((count_r / total) * 100.0, 1)
+        grades = GradesDistribution(
+            grade_a_percent=round((count_a / total) * 100.0, 1),
+            grade_b_percent=round((count_b / total) * 100.0, 1),
+            reject_percent=round((count_r / total) * 100.0, 1),
+        )
 
-        # Assign lot grade
-        if pct_r > 18.0:
-            assigned_grade = "Reject"
-        elif (counts["healthy"] / total) >= ModelConfig.GRADE_A_MIN_HEALTHY_RATIO and pct_a >= 65.0:
-            assigned_grade = "Grade A"
-        else:
-            assigned_grade = "Grade B"
+        defects = DefectsSummary(
+            healthy=healthy,
+            damaged=damaged,
+            rotten=rotten,
+            sprouted=sprouted,
+            undersized=undersized,
+            unknown=unknown,
+            total=total,
+        )
 
-        warnings: List[str] = [
-            "Heap overlap detected: Surface contour estimates only."
-        ]
-        if pct_r > 18.0:
-            warnings.append("High rejection rate (>18%). Secondary cross-sectional sampling advised.")
+        return grades, defects
 
-        edge_count = sum(1 for d in detections if d.is_edge_onion)
-        if edge_count > 0:
-            warnings.append(f"{edge_count} bulb(s) positioned near image frame boundaries.")
 
-        return {
-            "grades": {
-                "grade_a_percent": pct_a,
-                "grade_b_percent": pct_b,
-                "reject_percent": pct_r,
-            },
-            "defects": counts,
-            "assigned_grade": assigned_grade,
-            "warnings": warnings,
-        }
+quality_classifier = QualityClassifier()

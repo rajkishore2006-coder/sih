@@ -1,1 +1,1 @@
-# OnionSure App Package
+"""OnionSure App Package."""

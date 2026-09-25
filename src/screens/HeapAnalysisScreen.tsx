@@ -18,8 +18,6 @@ import {
   CheckCircle2,
   FileCheck2,
   Activity,
-  Cpu,
-  Layers,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 

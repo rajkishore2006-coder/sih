@@ -38,9 +38,27 @@ export function computeBoxIou(b1: DetectionBoundingBox, b2: DetectionBoundingBox
   return unionArea > 0 ? interArea / unionArea : 0;
 }
 
-export function applyNms(
+export function computeCentroidDistance(
+  b1: DetectionBoundingBox,
+  b2: DetectionBoundingBox
+): { dist: number; normDist: number } {
+  const cx1 = (b1.xmin + b1.xmax) / 2;
+  const cy1 = (b1.ymin + b1.ymax) / 2;
+  const cx2 = (b2.xmin + b2.xmax) / 2;
+  const cy2 = (b2.ymin + b2.ymax) / 2;
+
+  const r1 = Math.max(b1.xmax - b1.xmin, b1.ymax - b1.ymin) / 2;
+  const r2 = Math.max(b2.xmax - b2.xmin, b2.ymax - b2.ymin) / 2;
+
+  const dist = Math.sqrt((cx1 - cx2) ** 2 + (cy1 - cy2) ** 2);
+  const minRadius = Math.max(0.001, Math.min(r1, r2));
+  return { dist, normDist: dist / minRadius };
+}
+
+export function applyAdaptiveOverlapNms(
   detections: OnionDetectionItem[],
-  iouThreshold: number = 0.45
+  baseIouThreshold: number = AppAiModelConfig.iouNmsThreshold,
+  overlapAllowanceIou: number = 0.55
 ): { kept: OnionDetectionItem[]; suppressedCount: number } {
   if (detections.length === 0) return { kept: [], suppressedCount: 0 };
 
@@ -50,9 +68,31 @@ export function applyNms(
 
   for (const candidate of sorted) {
     let shouldSuppress = false;
-    for (const preserved of kept) {
-      const iou = computeBoxIou(candidate.bbox, preserved.bbox);
-      if (iou > iouThreshold) {
+
+    for (const existing of kept) {
+      const iou = computeBoxIou(candidate.bbox, existing.bbox);
+      if (iou <= 0.05) continue;
+
+      const { normDist } = computeCentroidDistance(candidate.bbox, existing.bbox);
+
+      // Case 1: Identical or duplicate proposal (very close centroids and high IoU)
+      if (iou > baseIouThreshold && normDist < 0.25) {
+        shouldSuppress = true;
+        break;
+      }
+
+      // Case 2: Extreme overlap (IoU >= overlapAllowanceIou) and close centers
+      if (iou >= overlapAllowanceIou && normDist < 0.40) {
+        shouldSuppress = true;
+        break;
+      }
+
+      // Case 3: Overlapping adjacent onions in heap (distinct centroids)
+      if (iou <= overlapAllowanceIou && normDist >= 0.35) {
+        continue;
+      }
+
+      if (iou > baseIouThreshold && normDist < 0.35) {
         shouldSuppress = true;
         break;
       }
@@ -68,6 +108,13 @@ export function applyNms(
   // Re-index remaining kept detections
   const reindexed = kept.map((item, idx) => ({ ...item, id: idx + 1 }));
   return { kept: reindexed, suppressedCount };
+}
+
+export function applyNms(
+  detections: OnionDetectionItem[],
+  iouThreshold: number = 0.45
+): { kept: OnionDetectionItem[]; suppressedCount: number } {
+  return applyAdaptiveOverlapNms(detections, iouThreshold);
 }
 
 export class OnionVisionPipeline {
@@ -90,9 +137,6 @@ export class OnionVisionPipeline {
     // Mock image dimension parsing
     const rawW = 1920;
     const rawH = 1080;
-    const scale = Math.min(640 / rawW, 640 / rawH);
-    const scaledW = Math.round(rawW * scale);
-    const scaledH = Math.round(rawH * scale);
     const tPrepEnd = performance.now();
 
     // Step 2: Determine Scenario & Run Detection
@@ -114,17 +158,17 @@ export class OnionVisionPipeline {
         this.createBulb(1, 0.50, 0.50, 0.22, 0.24, rand, 'Healthy', 58.0)
       );
     } else if (scenario === 'cluster_3') {
-      // 3 Onions: sample cluster
-      rawDetections.push(this.createBulb(1, 0.32, 0.48, 0.14, 0.15, rand, 'Healthy', 52.0));
-      rawDetections.push(this.createBulb(2, 0.68, 0.46, 0.15, 0.16, rand, 'Healthy', 54.5));
-      rawDetections.push(this.createBulb(3, 0.50, 0.62, 0.13, 0.14, rand, 'Damaged', 48.0));
+      // 3 Onions: sample cluster with overlapping pair
+      rawDetections.push(this.createBulb(1, 0.35, 0.46, 0.15, 0.16, rand, 'Healthy', 54.0));
+      rawDetections.push(this.createBulb(2, 0.52, 0.50, 0.16, 0.17, rand, 'Healthy', 56.5));
+      rawDetections.push(this.createBulb(3, 0.68, 0.45, 0.14, 0.15, rand, 'Damaged', 47.0));
     } else if (scenario === 'tray_5') {
-      // 5 Onions: sampling tray with 1 edge onion
-      rawDetections.push(this.createBulb(1, 0.24, 0.32, 0.12, 0.13, rand, 'Healthy', 55.0));
-      rawDetections.push(this.createBulb(2, 0.50, 0.30, 0.13, 0.13, rand, 'Healthy', 56.0));
-      rawDetections.push(this.createBulb(3, 0.76, 0.34, 0.12, 0.12, rand, 'Damaged', 46.0));
-      rawDetections.push(this.createBulb(4, 0.36, 0.65, 0.13, 0.14, rand, 'Sprouted', 51.0));
-      rawDetections.push(this.createBulb(5, 0.64, 0.68, 0.11, 0.11, rand, 'Undersized', 36.5));
+      // 5 Onions: sampling tray with 1 edge onion touching boundary
+      rawDetections.push(this.createBulb(1, 0.12, 0.30, 0.11, 0.12, rand, 'Healthy', 55.0));
+      rawDetections.push(this.createBulb(2, 0.45, 0.28, 0.13, 0.13, rand, 'Healthy', 57.0));
+      rawDetections.push(this.createBulb(3, 0.76, 0.32, 0.12, 0.12, rand, 'Damaged', 46.0));
+      rawDetections.push(this.createBulb(4, 0.36, 0.65, 0.13, 0.14, rand, 'Sprouted', 52.0));
+      rawDetections.push(this.createBulb(5, 0.65, 0.68, 0.11, 0.11, rand, 'Undersized', 37.0));
     } else if (scenario === 'multi_20') {
       let id = 1;
       for (let r = 0; r < 4; r++) {

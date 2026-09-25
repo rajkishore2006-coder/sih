@@ -1,45 +1,31 @@
-"""
-OnionSure AI Pipeline Configuration
-Production-ready configuration supporting environment variables and dynamic model overrides.
-"""
+"""Application configuration for OnionSure AI inference engine."""
 import os
-from typing import Dict, Any
+from dataclasses import dataclass
+from typing import Tuple
 
-class ModelConfig:
-    # Model Identification & Paths
-    MODEL_NAME: str = os.getenv("ONION_MODEL_NAME", "yoloe-seg-onion")
-    MODEL_PATH: str = os.getenv("ONION_MODEL_PATH", "models/yoloe_seg_onion_v1.pt")
-    FALLBACK_MODEL_NAME: str = "yoloe-seg-onion-prototype"
-    MODEL_VERSION: str = os.getenv("ONION_MODEL_VERSION", "1.2.0")
-    
-    # Inference Target Dimensions
-    INPUT_WIDTH: int = int(os.getenv("ONION_INPUT_WIDTH", "640"))
-    INPUT_HEIGHT: int = int(os.getenv("ONION_INPUT_HEIGHT", "640"))
-    MAX_IMAGE_DIMENSION: int = int(os.getenv("ONION_MAX_IMAGE_DIMENSION", "2048"))
-    
-    # Detection Thresholds
-    CONFIDENCE_THRESHOLD: float = float(os.getenv("ONION_CONF_THRESH", "0.40"))
-    IOU_NMS_THRESHOLD: float = float(os.getenv("ONION_IOU_THRESH", "0.45"))
-    MIN_ONION_PIXEL_AREA: int = int(os.getenv("ONION_MIN_AREA", "250"))
-    
-    # Defect & Grading Standards (APMC AGMARK standards)
-    MIN_PREMIUM_DIAMETER_MM: float = 40.0  # Under 40mm = Undersized
-    GRADE_A_MIN_HEALTHY_RATIO: float = 0.70  # >70% healthy for Grade A
-    MAX_REJECT_TOLERANCE_RATIO: float = 0.15  # >15% rejects degrades to Reject
-    
-    # Developer Diagnostics
-    ENABLE_DIAGNOSTICS_DEFAULT: bool = os.getenv("ONION_ENABLE_DIAGNOSTICS", "false").lower() == "true"
 
-    @classmethod
-    def as_dict(cls) -> Dict[str, Any]:
-        return {
-            "model_name": cls.MODEL_NAME,
-            "model_path": cls.MODEL_PATH,
-            "fallback_model_name": cls.FALLBACK_MODEL_NAME,
-            "model_version": cls.MODEL_VERSION,
-            "input_resolution": f"{cls.INPUT_WIDTH}x{cls.INPUT_HEIGHT}",
-            "confidence_threshold": cls.CONFIDENCE_THRESHOLD,
-            "iou_nms_threshold": cls.IOU_NMS_THRESHOLD,
-            "min_premium_diameter_mm": cls.MIN_PREMIUM_DIAMETER_MM,
-            "diagnostics_enabled_by_default": cls.ENABLE_DIAGNOSTICS_DEFAULT,
-        }
+@dataclass
+class ModelSettings:
+    """Configurable model runtime settings."""
+    model_name: str = os.environ.get("ONION_MODEL_NAME", "yoloe-seg-onion")
+    model_version: str = os.environ.get("ONION_MODEL_VERSION", "2.1.0-prod")
+    model_checkpoint_path: str = os.environ.get(
+        "ONION_MODEL_PATH", "models/checkpoints/yoloe_onion_best.pt"
+    )
+    fallback_model_name: str = "yoloe-seg-generic-v8"
+    confidence_threshold: float = float(os.environ.get("AI_CONF_THRESHOLD", "0.38"))
+    nms_iou_threshold: float = float(os.environ.get("AI_IOU_THRESHOLD", "0.45"))
+    adaptive_overlap_iou: float = float(os.environ.get("AI_ADAPTIVE_OVERLAP_IOU", "0.55"))
+    target_image_size: Tuple[int, int] = (640, 640)
+    max_image_dimension: int = 4096
+    max_detections: int = 300
+    min_premium_diameter_mm: float = 45.0
+    min_marketable_diameter_mm: float = 35.0
+    enable_diagnostics_default: bool = False
+    estimation_disclaimer: str = (
+        "AI estimates surface visible bulbs and contour density. Sub-surface layers, internal "
+        "defects, and bag bottoms cannot be optically verified without batch overturning."
+    )
+
+
+settings = ModelSettings()

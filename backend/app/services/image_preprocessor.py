@@ -1,93 +1,127 @@
+"""Image Preprocessor for OnionSure Vision Inference.
+
+Handles safe resizing, aspect-ratio preservation (letterboxing),
+EXIF rotation normalization, large-image memory guards, and
+bidirectional coordinate projection.
 """
-Image Preprocessing Service
-Handles EXIF orientation, aspect ratio preservation, resizing bounds, and IoU NMS deduplication.
-"""
-import io
+import base64
 import struct
 import math
-import time
-from typing import Tuple, List, Dict, Any, Optional
-from ..schemas.analysis import BoundingBox, DetectedOnion
+from dataclasses import dataclass
+from typing import Tuple, Dict, Any, Optional
+from ..config import settings
 
-class ImageMetadata:
-    def __init__(self, width: int, height: int, rotation: int = 0, size_bytes: int = 0, format_name: str = "jpeg"):
-        self.width = width
-        self.height = height
-        self.rotation = rotation
-        self.size_bytes = size_bytes
-        self.format_name = format_name
+
+@dataclass
+class PreprocessedImageMeta:
+    original_width: int
+    original_height: int
+    scaled_width: int
+    scaled_height: int
+    pad_x: float
+    pad_y: float
+    scale_factor: float
+    exif_rotation_degrees: int
+    size_bytes: int
+    is_downscaled_guard: bool
+
 
 class ImagePreprocessor:
-    """
-    Production preprocessor that extracts dimensions, handles EXIF orientation,
-    computes aspect-ratio scaling transforms, and applies Non-Maximum Suppression (NMS).
-    """
+    """Safe image preprocessor that prepares images for neural inference."""
 
     @staticmethod
-    def extract_metadata(image_bytes: bytes) -> ImageMetadata:
-        """
-        Extracts width, height, and EXIF orientation from JPEG / PNG binaries.
-        """
-        size_bytes = len(image_bytes)
-        if size_bytes < 16:
-            return ImageMetadata(640, 640, 0, size_bytes, "unknown")
+    def extract_image_dimensions_and_rotation(
+        image_bytes: bytes,
+    ) -> Tuple[int, int, int]:
+        """Parse image dimensions and EXIF rotation from raw byte header.
 
-        # Check PNG header: 89 50 4E 47 0D 0A 1A 0A
-        if image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+        Returns (width, height, rotation_degrees).
+        """
+        width = 1920
+        height = 1080
+        rotation_degrees = 0
+
+        if len(image_bytes) < 32:
+            return width, height, rotation_degrees
+
+        # Check PNG magic bytes
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
             try:
-                # IHDR chunk starts at byte 12
+                # PNG IHDR chunk starts at byte 12
                 w, h = struct.unpack(">II", image_bytes[16:24])
-                return ImageMetadata(width=w, height=h, rotation=0, size_bytes=size_bytes, format_name="png")
+                if w > 0 and h > 0:
+                    return w, h, 0
             except Exception:
                 pass
 
-        # Check JPEG header: FF D8
-        if image_bytes.startswith(b'\xff\xd8'):
-            width = 640
-            height = 640
-            rotation = 0
-            idx = 2
-            length = len(image_bytes)
+        # Check JPEG magic bytes
+        if image_bytes.startswith(b"\xff\xd8"):
+            try:
+                offset = 2
+                length = len(image_bytes)
+                while offset < length - 4:
+                    marker, = struct.unpack(">H", image_bytes[offset:offset + 2])
+                    offset += 2
+                    if marker == 0xFFD9 or marker == 0xFFDA:  # EOI or SOS
+                        break
+                    if offset >= length - 2:
+                        break
+                    segment_length, = struct.unpack(">H", image_bytes[offset:offset + 2])
+                    if segment_length < 2:
+                        break
 
-            while idx < length - 4:
-                marker, seg_len = struct.unpack(">HH", image_bytes[idx:idx+4])
-                if marker == 0xFFE1:  # APP1 EXIF segment
-                    exif_data = image_bytes[idx+4:idx+2+seg_len]
-                    rotation = ImagePreprocessor._parse_exif_rotation(exif_data)
-                elif marker in (0xFFC0, 0xFFC2):  # SOF0 or SOF2 (baseline / progressive)
-                    h, w = struct.unpack(">HH", image_bytes[idx+5:idx+9])
-                    width = w
-                    height = h
-                    break
-                idx += 2 + seg_len
+                    # EXIF in APP1 marker
+                    if marker == 0xFFE1 and segment_length > 14:
+                        app1_data = image_bytes[offset + 2 : offset + segment_length]
+                        if app1_data.startswith(b"Exif\x00\x00"):
+                            # Check orientation tag (0x0112)
+                            rot = ImagePreprocessor._parse_exif_orientation(app1_data[6:])
+                            if rot:
+                                rotation_degrees = rot
 
-            # If rotated 90 or 270 degrees, swap perceived width and height
-            if rotation in (90, 270):
-                width, height = height, width
+                    # SOF0, SOF2 markers contain image dimensions
+                    if marker in (0xFFC0, 0xFFC1, 0xFFC2):
+                        h, w = struct.unpack(">HH", image_bytes[offset + 3 : offset + 7])
+                        if w > 0 and h > 0:
+                            width, height = w, h
+                            break
 
-            return ImageMetadata(width=width, height=height, rotation=rotation, size_bytes=size_bytes, format_name="jpeg")
+                    offset += segment_length
+            except Exception:
+                pass
 
-        return ImageMetadata(640, 640, 0, size_bytes, "unknown")
+        return width, height, rotation_degrees
 
     @staticmethod
-    def _parse_exif_rotation(exif_bytes: bytes) -> int:
-        """Parses EXIF TIFF header to extract orientation tag (0x0112)."""
-        if len(exif_bytes) < 14 or not exif_bytes.startswith(b'Exif\x00\x00'):
+    def _parse_exif_orientation(tiff_header: bytes) -> int:
+        """Parse orientation tag from TIFF structure."""
+        if len(tiff_header) < 8:
             return 0
+        endian = tiff_header[:2]
+        fmt_short = "<H" if endian == b"II" else ">H"
+        fmt_long = "<I" if endian == b"II" else ">I"
+
         try:
-            tiff = exif_bytes[6:]
-            endian = tiff[:2]
-            fmt = ">" if endian == b'MM' else "<"
-            (first_ifd_offset,) = struct.unpack(f"{fmt}I", tiff[4:8])
-            offset = first_ifd_offset
-            (num_entries,) = struct.unpack(f"{fmt}H", tiff[offset:offset+2])
-            offset += 2
+            first_ifd_offset, = struct.unpack(fmt_long, tiff_header[4:8])
+            if first_ifd_offset + 2 > len(tiff_header):
+                return 0
+            num_entries, = struct.unpack(
+                fmt_short, tiff_header[first_ifd_offset : first_ifd_offset + 2]
+            )
+            curr = first_ifd_offset + 2
             for _ in range(num_entries):
-                tag, field_type, count, val_or_offset = struct.unpack(f"{fmt}HHI4s", tiff[offset:offset+12])
-                offset += 12
+                if curr + 12 > len(tiff_header):
+                    break
+                tag, field_type, count = struct.unpack(
+                    f"{endian.decode()}HHI", tiff_header[curr : curr + 8]
+                )
                 if tag == 0x0112:  # Orientation tag
-                    val = struct.unpack(f"{fmt}H", val_or_offset[:2])[0]
-                    # Map EXIF orientation: 1=Normal, 3=180, 6=90 CW, 8=270 CW
+                    val, = struct.unpack(fmt_short, tiff_header[curr + 8 : curr + 10])
+                    # EXIF orientations:
+                    # 1: Normal (0 deg)
+                    # 3: 180 deg
+                    # 6: 90 deg CW
+                    # 8: 270 deg CW (90 deg CCW)
                     if val == 3:
                         return 180
                     elif val == 6:
@@ -95,84 +129,90 @@ class ImagePreprocessor:
                     elif val == 8:
                         return 270
                     return 0
+                curr += 12
         except Exception:
             return 0
         return 0
 
-    @staticmethod
-    def compute_letterbox_transform(
-        orig_w: int,
-        orig_h: int,
-        target_w: int = 640,
-        target_h: int = 640,
-        max_dimension: int = 2048,
-    ) -> Dict[str, Any]:
-        """
-        Computes scale factors and padding offsets to preserve aspect ratio without distortion.
-        Handles very large images by downsampling factors.
-        """
-        # Clamp large dimensions
-        clamped_w = orig_w
-        clamped_h = orig_h
-        if max(orig_w, orig_h) > max_dimension:
-            ratio = max_dimension / max(orig_w, orig_h)
-            clamped_w = int(orig_w * ratio)
-            clamped_h = int(orig_h * ratio)
+    @classmethod
+    def preprocess(
+        cls,
+        image_bytes_or_base64: str,
+        target_size: Tuple[int, int] = settings.target_image_size,
+        max_dimension: int = settings.max_image_dimension,
+    ) -> PreprocessedImageMeta:
+        """Perform safe preprocessing with aspect ratio preservation and letterboxing math."""
+        # Clean base64 header if present
+        data = image_bytes_or_base64
+        if isinstance(data, str) and data.startswith("data:"):
+            data = data.split(",", 1)[-1]
 
-        scale = min(target_w / clamped_w, target_h / clamped_h)
-        new_unpad_w = int(round(clamped_w * scale))
-        new_unpad_h = int(round(clamped_h * scale))
+        raw_bytes = b""
+        if isinstance(data, str):
+            try:
+                raw_bytes = base64.b64decode(data)
+            except Exception:
+                raw_bytes = data.encode("utf-8", errors="ignore")
+        elif isinstance(data, bytes):
+            raw_bytes = data
 
-        pad_x = (target_w - new_unpad_w) / 2.0
-        pad_y = (target_h - new_unpad_h) / 2.0
+        size_bytes = len(raw_bytes)
+        w, h, rot = cls.extract_image_dimensions_and_rotation(raw_bytes)
 
-        return {
-            "scale": scale,
-            "pad_x": pad_x,
-            "pad_y": pad_y,
-            "scaled_w": new_unpad_w,
-            "scaled_h": new_unpad_h,
-            "target_w": target_w,
-            "target_h": target_h,
-            "clamped_w": clamped_w,
-            "clamped_h": clamped_h,
-        }
+        # If EXIF indicates 90 or 270 degrees rotation, dimensions are swapped
+        if rot in (90, 270):
+            w, h = h, w
 
-    @staticmethod
-    def apply_nms(
-        detections: List[DetectedOnion],
-        iou_threshold: float = 0.45,
-    ) -> Tuple[List[DetectedOnion], int]:
-        """
-        Non-Maximum Suppression (NMS) to eliminate duplicate/redundant bounding boxes.
-        Maintains genuine dense overlapping onions while suppressing duplicate detections
-        arising from multi-scale feature maps.
-        """
-        if not detections:
-            return [], 0
+        # Guard against excessively large images (> 4096px)
+        is_downscaled_guard = False
+        if max(w, h) > max_dimension:
+            scale_down = max_dimension / max(w, h)
+            w = int(w * scale_down)
+            h = int(h * scale_down)
+            is_downscaled_guard = True
 
-        # Sort by confidence descending
-        sorted_dets = sorted(detections, key=lambda d: d.confidence, reverse=True)
-        keep: List[DetectedOnion] = []
-        suppressed_count = 0
+        target_w, target_h = target_size
+        scale = min(target_w / max(1, w), target_h / max(1, h))
+        scaled_w = int(w * scale)
+        scaled_h = int(h * scale)
 
-        for candidate in sorted_dets:
-            should_suppress = False
-            for preserved in keep:
-                iou = candidate.bbox.iou(preserved.bbox)
-                # Overlap threshold check
-                if iou > iou_threshold:
-                    # If candidate has significantly lower confidence or near-identical box, suppress
-                    should_suppress = True
-                    break
+        pad_x = (target_w - scaled_w) / 2.0
+        pad_y = (target_h - scaled_h) / 2.0
 
-            if not should_suppress:
-                keep.append(candidate)
-            else:
-                suppressed_count += 1
+        return PreprocessedImageMeta(
+            original_width=w,
+            original_height=h,
+            scaled_width=scaled_w,
+            scaled_height=scaled_h,
+            pad_x=pad_x,
+            pad_y=pad_y,
+            scale_factor=scale,
+            exif_rotation_degrees=rot,
+            size_bytes=size_bytes,
+            is_downscaled_guard=is_downscaled_guard,
+        )
 
-        # Re-index remaining kept detections
-        for idx, item in enumerate(keep):
-            item.id = idx + 1
+    @classmethod
+    def letterbox_to_original_coords(
+        cls,
+        x_norm: float,
+        y_norm: float,
+        meta: PreprocessedImageMeta,
+        target_size: Tuple[int, int] = settings.target_image_size,
+    ) -> Tuple[float, float]:
+        """Convert normalized letterbox coordinate back to original image relative coordinate [0, 1]."""
+        target_w, target_h = target_size
+        canvas_x = x_norm * target_w
+        canvas_y = y_norm * target_h
 
-        return keep, suppressed_count
+        orig_px_x = (canvas_x - meta.pad_x) / max(0.001, meta.scale_factor)
+        orig_px_y = (canvas_y - meta.pad_y) / max(0.001, meta.scale_factor)
+
+        orig_norm_x = orig_px_x / max(1.0, meta.original_width)
+        orig_norm_y = orig_px_y / max(1.0, meta.original_height)
+
+        # Clamping to [0, 1]
+        orig_norm_x = max(0.0, min(1.0, orig_norm_x))
+        orig_norm_y = max(0.0, min(1.0, orig_norm_y))
+
+        return orig_norm_x, orig_norm_y

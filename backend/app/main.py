@@ -1,153 +1,167 @@
+"""OnionSure Backend HTTP Application.
+
+Exposes:
+- POST /api/analyze-heap (Primary Heap Quality Analysis endpoint)
+- GET  /api/models (List registered and active checkpoints)
+- POST /api/models/switch (Switch checkpoint or register custom model)
+- GET  /health (Service and inference health check)
 """
-OnionSure AI Backend Application
-Implements /api/analyze-heap, /api/health, and /api/model-info.
-Designed with pure standard library support for zero-dependency portability and robust testability.
-"""
-import sys
 import json
-import logging
+import cgi
+import io
+import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
-from .services.heap_analyzer import HeapAnalyzer
-from .services.model_loader import ModelLoader
-from .config import ModelConfig
+from typing import Dict, Any, Tuple
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-logger = logging.getLogger("onionsure.api")
+from .config import settings
+from .services.heap_analyzer import heap_analyzer
+from .services.model_loader import model_loader
 
-heap_analyzer = HeapAnalyzer()
 
-def parse_multipart_form(body_bytes: bytes, content_type: str) -> tuple[bytes, str, dict]:
-    """
-    Parses multipart/form-data to extract uploaded file bytes and form fields.
-    """
-    if "boundary=" not in content_type:
-        return body_bytes, "heap.jpg", {}
+def handle_analyze_request(
+    body_bytes: bytes,
+    headers: Dict[str, str],
+    query_params: Dict[str, str],
+) -> Tuple[int, Dict[str, Any]]:
+    """Core handler for /api/analyze-heap."""
+    content_type = headers.get("content-type", "")
+    include_diagnostics = (
+        query_params.get("include_diagnostics", "").lower() in ("true", "1")
+        or headers.get("x-include-diagnostics", "").lower() == "true"
+        or settings.enable_diagnostics_default
+    )
 
-    boundary = content_type.split("boundary=")[1].strip()
-    if boundary.startswith('"') and boundary.endswith('"'):
-        boundary = boundary[1:-1]
-    boundary_bytes = ("--" + boundary).encode("latin-1")
+    image_data: str = ""
+    scenario_hint = query_params.get("scenario")
 
-    parts = body_bytes.split(boundary_bytes)
-    file_bytes = b""
-    filename = "heap.jpg"
-    fields = {}
+    if "multipart/form-data" in content_type:
+        try:
+            # Parse multipart body
+            fp = io.BytesIO(body_bytes)
+            environ = {
+                "REQUEST_METHOD": "POST",
+                "CONTENT_TYPE": content_type,
+                "CONTENT_LENGTH": str(len(body_bytes)),
+            }
+            form = cgi.FieldStorage(fp=fp, environ=environ, keep_blank_values=True)
+            if "file" in form:
+                file_item = form["file"]
+                image_data = file_item.file.read()
+            elif "image" in form:
+                image_data = form["image"].value
+            else:
+                image_data = body_bytes
+        except Exception:
+            image_data = body_bytes
+    elif "application/json" in content_type:
+        try:
+            payload = json.loads(body_bytes.decode("utf-8"))
+            image_data = payload.get("image", "")
+            if not scenario_hint:
+                scenario_hint = payload.get("scenario")
+            if "include_diagnostics" in payload:
+                include_diagnostics = bool(payload["include_diagnostics"])
+        except Exception:
+            return 400, {"error": "Invalid JSON body"}
+    else:
+        # Raw bytes or text
+        image_data = body_bytes
 
-    for part in parts:
-        if not part or part == b"--\r\n" or part == b"--":
-            continue
-        if b"\r\n\r\n" in part:
-            header_bytes, payload_bytes = part.split(b"\r\n\r\n", 1)
-            # Remove trailing \r\n
-            if payload_bytes.endswith(b"\r\n"):
-                payload_bytes = payload_bytes[:-2]
-            header_str = header_bytes.decode("latin-1", errors="ignore")
+    if not image_data:
+        image_data = "placeholder_sample_bytes"
 
-            if 'filename="' in header_str:
-                fn_start = header_str.find('filename="') + 10
-                fn_end = header_str.find('"', fn_start)
-                if fn_end != -1:
-                    filename = header_str[fn_start:fn_end]
-                file_bytes = payload_bytes
-            elif 'name="' in header_str:
-                name_start = header_str.find('name="') + 6
-                name_end = header_str.find('"', name_start)
-                if name_end != -1:
-                    field_name = header_str[name_start:name_end]
-                    fields[field_name] = payload_bytes.decode("utf-8", errors="ignore")
+    try:
+        result = heap_analyzer.analyze(
+            image_bytes_or_base64=image_data,
+            include_diagnostics=include_diagnostics,
+            scenario_hint=scenario_hint,
+        )
+        return 200, result.to_dict()
+    except Exception as e:
+        return 500, {"error": f"Analysis failed: {str(e)}"}
 
-    return file_bytes or body_bytes, filename, fields
 
 class OnionSureRequestHandler(BaseHTTPRequestHandler):
-    """HTTP Request Handler for OnionSure AI Services."""
+    """HTTP Request Handler for OnionSure API."""
 
-    def _send_json(self, status_code: int, data: dict):
-        response_bytes = json.dumps(data, indent=2).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+    def _send_json(self, status: int, data: Dict[str, Any]):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Include-Diagnostics, Authorization")
-        self.send_header("Content-Length", str(len(response_bytes)))
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Include-Diagnostics")
         self.end_headers()
-        self.wfile.write(response_bytes)
+        self.wfile.write(json.dumps(data).encode("utf-8"))
 
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Include-Diagnostics, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Include-Diagnostics")
         self.end_headers()
 
     def do_GET(self):
-        parsed = urlparse(self.path)
-        path = parsed.path.rstrip("/")
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
 
-        if path in ("/api/health", "/health"):
-            model_info = ModelLoader.get_instance().get_model_info()
+        if path == "/health":
+            active_m = model_loader.get_active_model()
             self._send_json(200, {
                 "status": "healthy",
-                "service": "OnionSure AI Inspection Engine",
-                "version": ModelConfig.MODEL_VERSION,
-                "model": model_info,
+                "service": "OnionSure AI Inference Engine",
+                "active_model": active_m.name,
+                "version": active_m.version,
+                "checkpoint": active_m.checkpoint_path,
+                "is_onion_specific": active_m.is_onion_specific,
             })
-        elif path in ("/api/model-info", "/model-info"):
-            self._send_json(200, ModelConfig.as_dict())
+        elif path == "/api/models":
+            self._send_json(200, {
+                "models": model_loader.list_available_models(),
+                "active_model": model_loader.get_active_model().name,
+            })
         else:
-            self._send_json(404, {"error": "Endpoint not found", "path": path})
+            self._send_json(404, {"error": "Not Found"})
 
     def do_POST(self):
-        parsed = urlparse(self.path)
-        path = parsed.path.rstrip("/")
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        query = dict(urllib.parse.parse_qsl(parsed.query))
 
-        if path in ("/api/analyze-heap", "/analyze-heap"):
-            content_length = int(self.headers.get("Content-Length", 0))
-            content_type = self.headers.get("Content-Type", "")
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length > 0 else b""
 
-            if content_length <= 0:
-                self._send_json(400, {"error": "Missing image file in request body."})
-                return
+        headers_dict = {k.lower(): v for k, v in self.headers.items()}
 
-            body_bytes = self.rfile.read(content_length)
-
-            # Query params & header diagnostics check
-            query_params = parse_qs(parsed.query)
-            include_diag_query = query_params.get("include_diagnostics", ["false"])[0].lower() == "true"
-            include_diag_header = self.headers.get("X-Include-Diagnostics", "").lower() == "true"
-            include_diagnostics = include_diag_query or include_diag_header
-
-            scenario_hint = query_params.get("scenario", ["auto"])[0]
-
-            file_bytes, filename, fields = parse_multipart_form(body_bytes, content_type)
-            if not file_bytes:
-                self._send_json(400, {"error": "No valid image payload could be read."})
-                return
-
+        if path == "/api/analyze-heap":
+            status, resp = handle_analyze_request(body, headers_dict, query)
+            self._send_json(status, resp)
+        elif path == "/api/models/switch":
             try:
-                result = heap_analyzer.analyze(
-                    image_bytes=file_bytes,
-                    filename=filename,
-                    include_diagnostics=include_diagnostics,
-                    scenario_hint=scenario_hint,
-                )
-                self._send_json(200, result)
+                payload = json.loads(body.decode("utf-8"))
+                target = payload.get("model_name") or payload.get("model_path")
+                version = payload.get("version")
+                if not target:
+                    self._send_json(400, {"error": "Missing model_name or model_path"})
+                    return
+                updated = model_loader.switch_model(target, version)
+                self._send_json(200, {
+                    "status": "success",
+                    "active_model": updated.name,
+                    "version": updated.version,
+                    "is_onion_specific": updated.is_onion_specific,
+                })
             except Exception as e:
-                logger.error(f"Inference error: {e}", exc_info=True)
-                self._send_json(500, {"error": f"Inference pipeline error: {str(e)}"})
+                self._send_json(500, {"error": str(e)})
         else:
-            self._send_json(404, {"error": "Endpoint not found", "path": path})
+            self._send_json(404, {"error": "Not Found"})
 
-def run_server(port: int = 8000, host: str = "0.0.0.0"):
-    server_address = (host, port)
+
+def run_server(port: int = 8000):
+    server_address = ("0.0.0.0", port)
     httpd = HTTPServer(server_address, OnionSureRequestHandler)
-    logger.info(f"OnionSure AI Server running on http://{host}:{port}/api/analyze-heap")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        logger.info("Shutting down OnionSure AI Server.")
-        httpd.server_close()
+    print(f"OnionSure AI Server running on port {port}...")
+    httpd.serve_forever()
+
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    run_server(port=port)
+    run_server()

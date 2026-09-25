@@ -1,6 +1,5 @@
 import {
   HeapAnalysisResult,
-  OnionDetectionItem,
   DefectType,
   QualityGrade,
 } from '../types';

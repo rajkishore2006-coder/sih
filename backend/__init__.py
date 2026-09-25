@@ -1,1 +1,1 @@
-# OnionSure Backend Package
+"""OnionSure Backend Package."""

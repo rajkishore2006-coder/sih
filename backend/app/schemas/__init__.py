@@ -1,4 +1,20 @@
-# Schemas
-from .analysis import Point2D, BoundingBox, DetectedOnion, DiagnosticsInfo
+"""Schemas for AI analysis."""
+from .analysis import (
+    BoundingBox,
+    Point2D,
+    DetectionItem,
+    GradesDistribution,
+    DefectsSummary,
+    DeveloperDiagnostics,
+    HeapAnalysisResponse,
+)
 
-__all__ = ["Point2D", "BoundingBox", "DetectedOnion", "DiagnosticsInfo"]
+__all__ = [
+    "BoundingBox",
+    "Point2D",
+    "DetectionItem",
+    "GradesDistribution",
+    "DefectsSummary",
+    "DeveloperDiagnostics",
+    "HeapAnalysisResponse",
+]
