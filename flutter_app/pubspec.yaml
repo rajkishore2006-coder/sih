@@ -1,0 +1,63 @@
+name: onionsure_app
+description: "OnionSure - AI-powered smart onion batch quality estimation from heap images, digital grading, batch tracking, and certificate verification."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.2
+
+  # Routing & Navigation
+  go_router: ^14.2.0
+
+  # Networking & HTTP
+  dio: ^5.4.3+1
+  http_parser: ^4.0.2
+
+  # Offline Storage & Database
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.3
+  flutter_secure_storage: ^9.0.0
+
+  # Device & Connectivity
+  connectivity_plus: ^6.0.3
+  image_picker: ^1.1.2
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.3
+  uuid: ^4.4.0
+
+  # QR Scanning & Code Generation
+  mobile_scanner: ^5.1.1
+  qr_flutter: ^4.1.0
+
+  # PDF Generation & Printing
+  pdf: ^3.10.8
+  printing: ^5.12.0
+
+  # Internationalization & Formatting
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.9
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
